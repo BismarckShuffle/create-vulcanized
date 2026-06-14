@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package com.create.treeresin;
 
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.item.ItemDescription;
@@ -13,8 +13,8 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Mod(ExampleMod.ID)
-public class ExampleMod {
+@Mod(com.create.treeresin.CreateTreeResin.ID)
+public class CreateTreeResin {
     public static final String ID = "examplemod";
     public static final Logger LOGGER = LogManager.getLogger(ID);
 
@@ -24,7 +24,7 @@ public class ExampleMod {
                             .andThen(TooltipModifier.mapNull(KineticStats.create(item)))
             );
 
-    public ExampleMod(IEventBus modBus) {
+    public CreateTreeResin(IEventBus modBus) {
         REGISTRATE.registerEventListeners(modBus);
 
         AllCreativeModeTabs.register();

@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package com.create.treeresin;
 
 import com.tterrag.registrate.util.entry.ItemEntry;
 import net.minecraft.world.item.Item;
@@ -8,7 +8,7 @@ import net.minecraft.world.item.Item;
  */
 public class AllItems {
 
-    public static final ItemEntry<Item> EXAMPLE_ITEM = ExampleMod.REGISTRATE
+    public static final ItemEntry<Item> EXAMPLE_ITEM = CreateTreeResin.REGISTRATE
             .item("example_item", Item::new)
             .register();
 

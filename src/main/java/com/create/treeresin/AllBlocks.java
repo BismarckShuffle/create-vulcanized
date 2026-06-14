@@ -1,4 +1,4 @@
-package com.example.examplemod;
+package com.create.treeresin;
 
 /**
  * Block registration using Create's Registrate.
