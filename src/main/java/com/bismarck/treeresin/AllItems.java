@@ -1,4 +1,4 @@
-package com.create.treeresin;
+package com.bismarck.treeresin;
 
 import com.tterrag.registrate.util.entry.ItemEntry;
 import net.minecraft.world.item.Item;

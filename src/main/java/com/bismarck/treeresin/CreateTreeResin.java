@@ -1,4 +1,4 @@
-package com.create.treeresin;
+package com.bismarck.treeresin;
 
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.item.ItemDescription;
@@ -13,9 +13,9 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Mod(com.create.treeresin.CreateTreeResin.ID)
+@Mod(CreateTreeResin.ID)
 public class CreateTreeResin {
-    public static final String ID = "examplemod";
+    public static final String ID = "createtreeresin";
     public static final Logger LOGGER = LogManager.getLogger(ID);
 
     public static final CreateRegistrate REGISTRATE = CreateRegistrate.create(ID)

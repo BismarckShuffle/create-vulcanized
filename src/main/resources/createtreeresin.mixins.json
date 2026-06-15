@@ -1,9 +1,9 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.example.examplemod.mixin",
+  "package": "com.bismarck.treeresin.mixin",
   "compatibilityLevel": "JAVA_21",
-  "refmap": "examplemod.refmap.json",
+  "refmap": "treeresin.refmap.json",
   "client": [],
   "injectors": {
     "defaultRequire": 1

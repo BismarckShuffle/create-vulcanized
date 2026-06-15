@@ -1,4 +1,4 @@
-package com.create.treeresin;
+package com.bismarck.treeresin;
 
 /**
  * Block registration using Create's Registrate.
