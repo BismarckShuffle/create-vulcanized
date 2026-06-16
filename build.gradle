@@ -35,6 +35,8 @@ neoForge {
             client()
             systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
             jvmArguments.addAll '-Xmx2G', '-Xms512M'
+            // 1. Automatically logs into your test world upon launch
+            //programArguments.addAll '--quickPlaySingleplayer', 'DevWorld'
         }
 
         server {
