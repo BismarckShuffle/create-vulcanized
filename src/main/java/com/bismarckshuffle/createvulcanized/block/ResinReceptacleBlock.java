@@ -1,4 +1,4 @@
-package com.bismarck.treeresin.block;
+package com.bismarckshuffle.createvulcanized.block;
 
 import net.minecraft.world.level.block.Block;
 

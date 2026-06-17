@@ -1,4 +1,4 @@
-package com.bismarck.treeresin;
+package com.bismarckshuffle.createvulcanized;
 
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.item.ItemDescription;
@@ -13,9 +13,9 @@ import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Mod(CreateTreeResin.ID)
-public class CreateTreeResin {
-    public static final String ID = "createtreeresin";
+@Mod(CreateVulcanized.ID)
+public class CreateVulcanized {
+    public static final String ID = "createvulcanized";
     public static final Logger LOGGER = LogManager.getLogger(ID);
 
     public static final CreateRegistrate REGISTRATE = CreateRegistrate.create(ID)
@@ -24,7 +24,7 @@ public class CreateTreeResin {
                             .andThen(TooltipModifier.mapNull(KineticStats.create(item)))
             );
 
-    public CreateTreeResin(IEventBus modBus) {
+    public CreateVulcanized(IEventBus modBus) {
         REGISTRATE.registerEventListeners(modBus);
 
         AllCreativeModeTabs.register();

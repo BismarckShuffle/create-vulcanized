@@ -1,4 +1,4 @@
-package com.bismarck.treeresin;
+package com.bismarckshuffle.createvulcanized;
 
 import com.tterrag.registrate.util.entry.RegistryEntry;
 import net.minecraft.network.chat.Component;
@@ -9,9 +9,9 @@ import net.minecraft.world.item.Items;
 public class AllCreativeModeTabs {
 
     public static final RegistryEntry<CreativeModeTab, CreativeModeTab> MAIN_TAB =
-            CreateTreeResin.REGISTRATE.defaultCreativeTab("main_tab", builder ->
+            CreateVulcanized.REGISTRATE.defaultCreativeTab("main_tab", builder ->
                     builder
-                            .title(Component.translatable("itemGroup." + CreateTreeResin.ID))
+                            .title(Component.translatable("itemGroup." + CreateVulcanized.ID))
                             .icon(() -> new ItemStack(Items.HONEYCOMB))  // Replace with your own icon
                             .build()
             ).register();

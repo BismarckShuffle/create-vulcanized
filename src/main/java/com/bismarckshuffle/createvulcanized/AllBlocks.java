@@ -1,4 +1,4 @@
-package com.bismarck.treeresin;
+package com.bismarckshuffle.createvulcanized;
 
 /**
  * Block registration using Create's Registrate.

@@ -1,4 +1,4 @@
-package com.bismarck.treeresin;
+package com.bismarckshuffle.createvulcanized;
 
 import com.tterrag.registrate.util.entry.ItemEntry;
 import net.minecraft.world.item.Item;
@@ -8,7 +8,7 @@ import net.minecraft.world.item.Item;
  */
 public class AllItems {
 
-    public static final ItemEntry<Item> EXAMPLE_ITEM = CreateTreeResin.REGISTRATE
+    public static final ItemEntry<Item> EXAMPLE_ITEM = CreateVulcanized.REGISTRATE
             .item("example_item", Item::new)
             .register();
 

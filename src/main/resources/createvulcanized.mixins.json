@@ -1,9 +1,9 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.bismarck.treeresin.mixin",
+  "package": "com.bismarckshuffle.createvulcanized.mixin",
   "compatibilityLevel": "JAVA_21",
-  "refmap": "treeresin.refmap.json",
+  "refmap": "createvulcanizede.refmap.json",
   "client": [],
   "injectors": {
     "defaultRequire": 1
