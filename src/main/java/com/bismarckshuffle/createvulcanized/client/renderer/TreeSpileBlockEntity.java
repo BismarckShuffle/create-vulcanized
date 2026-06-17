@@ -2,8 +2,8 @@ package com.bismarckshuffle.createvulcanized.client.renderer;
 
 import net.minecraft.world.level.block.Block;
 
-public class ResinReceptacleBlockEntity extends Block {
-    public ResinReceptacleBlockEntity(Properties properties) {
+public class TreeSpileBlockEntity extends Block {
+    public TreeSpileBlockEntity(Properties properties) {
         super(properties);
     }
 }
