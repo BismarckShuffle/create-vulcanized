@@ -9,9 +9,11 @@ import com.simibubi.create.foundation.block.IBE;
 import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
@@ -54,7 +56,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         // This grabs the direction the player is facing and assigns it to the block state
         return this.defaultBlockState()
-                .setValue(FACING, context.getHorizontalDirection())
+                .setValue(FACING, context.getHorizontalDirection().getOpposite())
                 .setValue(ATTACHED_TO_TREE, false);
     }
 
@@ -92,14 +94,33 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         BlockPos pos = context.getClickedPos();
         Player player = context.getPlayer();
 
-        // 1. SNEAK-DISMANTLE HANDLER: Checks if player is crouched with the wrench
+        // 1. CROUCH + WRENCH DISMANTLE HANDLER (WITH INVENTORY RETENTION)
         if (player != null && player.isShiftKeyDown()) {
             if (!level.isClientSide()) {
-                // Remove the block from the world grid smoothly
+                // Prepare the item drop stack frame
+                ItemStack dropStack = new ItemStack(this.asItem());
+
+                // Fetch the active Block Entity before erasing it from the grid world
+                this.withBlockEntityDo(level, pos, spileBe -> {
+                    // Instruct the Block Entity to write its full data (including its fluid tank) into a transient NBT compound
+                    net.minecraft.nbt.CompoundTag blockEntityData = spileBe.saveWithFullMetadata(level.registryAccess());
+
+                    // Minecraft 1.21 uses Data Components! Remove world-specific coordinate tags so it stacks cleanly
+                    blockEntityData.remove("id");
+                    blockEntityData.remove("x");
+                    blockEntityData.remove("y");
+                    blockEntityData.remove("z");
+
+                    // Bake the compound tag directly into the item's BLOCK_ENTITY_DATA component layer
+                    if (!blockEntityData.isEmpty()) {
+                        dropStack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(blockEntityData));
+                    }
+                });
+
+                // Clear the block from the world grid safely (false avoids triggering standard loot drops)
                 level.destroyBlock(pos, false, player);
 
-                // Manually spawn your block item and insert it directly into the player's inventory slots
-                ItemStack dropStack = new ItemStack(this.asItem());
+                // Insert the custom cargo-loaded item directly into the player's inventory bar
                 if (!player.getInventory().add(dropStack)) {
                     player.drop(dropStack, false);
                 }
@@ -107,14 +128,19 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
             return InteractionResult.sidedSuccess(level.isClientSide());
         }
 
-        // 2. STANDARD ROTATION HANDLER: If just right-clicking normally, rotate and check trees
-        InteractionResult result = IWrenchable.super.onWrenched(state, context);
-        if (result.consumesAction() && !level.isClientSide()) {
+        // 2. ANY-SIDE HORIZONTAL ROTATION OVERRIDE
+        if (!level.isClientSide()) {
+            Direction currentFacing = state.getValue(FACING);
+            Direction nextFacing = currentFacing.getClockWise();
+            BlockState newState = state.setValue(FACING, nextFacing);
+            level.setBlock(pos, newState, 3);
+            IWrenchable.playRotateSound(level, pos);
+
             this.withBlockEntityDo(level, pos, spileBe -> {
-                spileBe.forceTreeRecheck(level, pos, level.getBlockState(pos));
+                spileBe.forceTreeRecheck(level, pos, newState);
             });
         }
 
-        return result;
+        return InteractionResult.sidedSuccess(level.isClientSide());
     }
 }

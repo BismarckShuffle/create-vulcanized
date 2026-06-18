@@ -27,7 +27,9 @@ public class AllBlocks {
     public static final BlockEntry<TreeSpileBlock> TREE_SPILE = CreateVulcanized.REGISTRATE
             .block("tree_spile", TreeSpileBlock::new)
             .initialProperties(SharedProperties::wooden)
-            .properties(p -> p.noOcclusion())
+            .properties(p -> p.noOcclusion()
+                    .isSuffocating((state, level, pos) -> false)
+                    .isViewBlocking((state, level, pos) -> false))
             .transform(axeOrPickaxe())
             .simpleItem()
             .register();

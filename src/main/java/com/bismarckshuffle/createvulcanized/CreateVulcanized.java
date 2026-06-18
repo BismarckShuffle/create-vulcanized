@@ -5,6 +5,8 @@ import com.simibubi.create.foundation.item.ItemDescription;
 import com.simibubi.create.foundation.item.KineticStats;
 import com.simibubi.create.foundation.item.TooltipModifier;
 import net.createmod.catnip.lang.FontHelper;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
@@ -51,6 +53,9 @@ public class CreateVulcanized {
 
     private void onClientSetup(FMLClientSetupEvent event) {
         LOGGER.info("Client setup...");
+        event.enqueueWork(() -> {
+            ItemBlockRenderTypes.setRenderLayer(AllBlocks.TREE_SPILE.get(), RenderType.cutoutMipped());
+        });
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
