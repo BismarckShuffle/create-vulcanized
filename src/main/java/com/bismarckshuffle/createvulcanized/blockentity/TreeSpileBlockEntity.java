@@ -9,6 +9,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.Fluid;
+import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 
 public class TreeSpileBlockEntity extends BlockEntity {
@@ -21,8 +23,14 @@ public class TreeSpileBlockEntity extends BlockEntity {
     private int progressTimer = 0;
     private int validationTimer = 0;
 
-    // Create an internal FluidTank (Replace with your custom Resin Fluid later)
-    protected final FluidTank fluidTank = new FluidTank(2000); // Holds up to 2 buckets
+    // Create an internal FluidTank
+    public final FluidTank fluidTank = new FluidTank(2000) {
+        @Override
+
+        public boolean isFluidValid(FluidStack stack) {
+            return false; // We don't want fluid going back to the receptacle
+        }                 // Holds up to 2 buckets
+    };
 
     public TreeSpileBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);

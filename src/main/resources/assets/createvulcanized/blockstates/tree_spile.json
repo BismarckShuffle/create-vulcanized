@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "facing=north,attached_to_tree=false": { "model": "createvulcanized:block/tree_spile_base" },
+    "facing=east,attached_to_tree=false":  { "model": "createvulcanized:block/tree_spile_base", "y": 90 },
+    "facing=south,attached_to_tree=false": { "model": "createvulcanized:block/tree_spile_base", "y": 180 },
+    "facing=west,attached_to_tree=false":  { "model": "createvulcanized:block/tree_spile_base", "y": 270 },
+
+    "facing=north,attached_to_tree=true":  { "model": "createvulcanized:block/tree_spile_full" },
+    "facing=east,attached_to_tree=true":   { "model": "createvulcanized:block/tree_spile_full", "y": 90 },
+    "facing=south,attached_to_tree=true":  { "model": "createvulcanized:block/tree_spile_full", "y": 180 },
+    "facing=west,attached_to_tree=true":   { "model": "createvulcanized:block/tree_spile_full", "y": 270 }
+  }
+}

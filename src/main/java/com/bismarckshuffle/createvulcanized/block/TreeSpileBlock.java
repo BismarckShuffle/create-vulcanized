@@ -10,8 +10,11 @@ import com.simibubi.create.foundation.block.WrenchableDirectionalBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
@@ -41,7 +44,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                 .setValue(ATTACHED_TO_TREE, false));
     }
 
-
     @Override
     protected MapCodec<? extends HorizontalDirectionalBlock> codec() {
         return CODEC;
@@ -51,7 +53,9 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
         // This grabs the direction the player is facing and assigns it to the block state
-        return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection());
+        return this.defaultBlockState()
+                .setValue(FACING, context.getHorizontalDirection())
+                .setValue(ATTACHED_TO_TREE, false);
     }
 
     // 4. Tell the engine that FACING is a valid property for this block configuration
@@ -84,15 +88,30 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
 
     @Override
     public InteractionResult onWrenched(BlockState state, UseOnContext context) {
-        // 1. Let Create handle the physical rotation math first
-        InteractionResult result = IWrenchable.super.onWrenched(state, context);
+        Level level = context.getLevel();
+        BlockPos pos = context.getClickedPos();
+        Player player = context.getPlayer();
 
-        // 2. If it successfully rotated on the Server, force our data card to update immediately
-        if (result.consumesAction() && !context.getLevel().isClientSide()) {
-            // Look up our stateful block entity instance at this position
-            this.withBlockEntityDo(context.getLevel(), context.getClickedPos(), spileBe -> {
-                // Force an instant tree structure re-check right now!
-                spileBe.forceTreeRecheck(context.getLevel(), context.getClickedPos(), context.getLevel().getBlockState(context.getClickedPos()));
+        // 1. SNEAK-DISMANTLE HANDLER: Checks if player is crouched with the wrench
+        if (player != null && player.isShiftKeyDown()) {
+            if (!level.isClientSide()) {
+                // Remove the block from the world grid smoothly
+                level.destroyBlock(pos, false, player);
+
+                // Manually spawn your block item and insert it directly into the player's inventory slots
+                ItemStack dropStack = new ItemStack(this.asItem());
+                if (!player.getInventory().add(dropStack)) {
+                    player.drop(dropStack, false);
+                }
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide());
+        }
+
+        // 2. STANDARD ROTATION HANDLER: If just right-clicking normally, rotate and check trees
+        InteractionResult result = IWrenchable.super.onWrenched(state, context);
+        if (result.consumesAction() && !level.isClientSide()) {
+            this.withBlockEntityDo(level, pos, spileBe -> {
+                spileBe.forceTreeRecheck(level, pos, level.getBlockState(pos));
             });
         }
 

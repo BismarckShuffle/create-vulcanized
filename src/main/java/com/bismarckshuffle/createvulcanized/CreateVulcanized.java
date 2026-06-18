@@ -5,11 +5,14 @@ import com.simibubi.create.foundation.item.ItemDescription;
 import com.simibubi.create.foundation.item.KineticStats;
 import com.simibubi.create.foundation.item.TooltipModifier;
 import net.createmod.catnip.lang.FontHelper;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,9 +34,11 @@ public class CreateVulcanized {
         REGISTRATE.setCreativeTab(AllCreativeModeTabs.MAIN_TAB);
         AllItems.register();
         AllBlocks.register();
+        AllBlockEntities.register();
 
         modBus.addListener(this::onCommonSetup);
         modBus.addListener(this::onClientSetup);
+        modBus.addListener(this::registerCapabilities);
     }
 
     public static ResourceLocation asResource(String path) {
@@ -46,5 +51,21 @@ public class CreateVulcanized {
 
     private void onClientSetup(FMLClientSetupEvent event) {
         LOGGER.info("Client setup...");
+    }
+
+    private void registerCapabilities(RegisterCapabilitiesEvent event) {
+        // Bind a fluid capability handler specifically to Tree Spile Block Entity type
+        event.registerBlockEntity(
+                Capabilities.FluidHandler.BLOCK,
+                AllBlockEntities.TREE_SPILE.get(),
+                (spileBe, direction) -> {
+                    // CONSTRAINT: Only expose the tank if a pipe is looking at the BOTTOM face
+                    // This is where the copper base is
+                    if (direction == Direction.DOWN) {
+                        return spileBe.fluidTank;
+                    }
+                    return null; // Ignore connections from the top or sides
+                }
+        );
     }
 }
