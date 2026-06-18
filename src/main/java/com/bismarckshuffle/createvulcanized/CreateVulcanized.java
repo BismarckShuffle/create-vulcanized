@@ -18,6 +18,8 @@ import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import static net.minecraft.client.renderer.ItemBlockRenderTypes.setRenderLayer;
+
 @Mod(CreateVulcanized.ID)
 public class CreateVulcanized {
     public static final String ID = "createvulcanized";
@@ -37,6 +39,7 @@ public class CreateVulcanized {
         AllItems.register();
         AllBlocks.register();
         AllBlockEntities.register();
+        AllFluids.register();
 
         modBus.addListener(this::onCommonSetup);
         modBus.addListener(this::onClientSetup);
@@ -53,9 +56,6 @@ public class CreateVulcanized {
 
     private void onClientSetup(FMLClientSetupEvent event) {
         LOGGER.info("Client setup...");
-        event.enqueueWork(() -> {
-            ItemBlockRenderTypes.setRenderLayer(AllBlocks.TREE_SPILE.get(), RenderType.cutoutMipped());
-        });
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
@@ -67,7 +67,7 @@ public class CreateVulcanized {
                     // CONSTRAINT: Only expose the tank if a pipe is looking at the BOTTOM face
                     // This is where the copper base is
                     if (direction == Direction.DOWN) {
-                        return spileBe.fluidTank;
+                        return spileBe.getFluidTank();
                     }
                     return null; // Ignore connections from the top or sides
                 }

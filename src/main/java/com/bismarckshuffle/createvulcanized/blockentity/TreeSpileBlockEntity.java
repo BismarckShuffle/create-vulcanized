@@ -1,9 +1,12 @@
 package com.bismarckshuffle.createvulcanized.blockentity;
 
+import com.bismarckshuffle.createvulcanized.AllFluids;
 import com.bismarckshuffle.createvulcanized.block.TreeSpileBlock;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -20,53 +23,68 @@ public class TreeSpileBlockEntity extends BlockEntity {
     private static final int RESIN_PER_CYCLE = 50; // Millibuckets (mB). 1000mB = 1 Bucket.
     private static final int TICK_INTERVAL = TICK_DELAY_SECONDS * 20; // 20 ticks = 1 second
 
-    private int progressTimer = 0;
-    private int validationTimer = 0;
-
-    // Create an internal FluidTank
-    public final FluidTank fluidTank = new FluidTank(2000) {
+    protected final FluidTank fluidTank = new FluidTank(1000) {
         @Override
-
+        protected void onContentsChanged() {
+            setChanged();
+            if (level != null && !level.isClientSide) {
+                level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+            }
+        }
+        @Override
         public boolean isFluidValid(FluidStack stack) {
-            return false; // We don't want fluid going back to the receptacle
-        }                 // Holds up to 2 buckets
+            return stack.getFluid() == AllFluids.RESIN.get();
+        }
     };
+
+    private int validationTimer = 0;
+    private int operationTimer = 0;
 
     public TreeSpileBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
 
-    public void tick(Level level, BlockPos pos, BlockState state) {
-        // Only validate the structural environment once every 5 seconds (100 ticks)
-        validationTimer++;
-        if (validationTimer >= 100) {
-            validationTimer = 0;
-            boolean isLegitTree = checkTreeStructure(level, pos, state);
+    public FluidTank getFluidTank() {
+        return this.fluidTank;
+    }
 
-            // If the environment state changed, dynamically update the block model look
-            if (state.getValue(TreeSpileBlock.ATTACHED_TO_TREE) != isLegitTree) {
-                level.setBlock(pos, state.setValue(TreeSpileBlock.ATTACHED_TO_TREE, isLegitTree), 3);
-            }
-        }
+    @Override
+    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.saveAdditional(tag, registries);
+        tag.put("FluidTank", this.fluidTank.writeToNBT(registries, new CompoundTag()));
+    }
 
-        // ONLY tick processing if fully attached to a healthy tree
-        if (!state.getValue(TreeSpileBlock.ATTACHED_TO_TREE)) {
-            progressTimer = 0; // Reset progress if the tree structure breaks mid-process
-            return;
-        }
-
-        progressTimer++;
-        if (progressTimer >= TICK_INTERVAL) {
-            progressTimer = 0;
-            fillWithResin();
+    @Override
+    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
+        super.loadAdditional(tag, registries);
+        if (tag.contains("FluidTank")) {
+            this.fluidTank.readFromNBT(registries, tag.getCompound("FluidTank"));
         }
     }
 
-    private void fillWithResin() {
-        // TODO: Tie this directly to your registered Resin fluid instead of null
-        // fluidTank.fill(new FluidStack(ModFluids.RESIN.get(), RESIN_PER_CYCLE), FluidAction.EXECUTE);
+    // Keep your exact tick execution loop body here!
+    public static void tick(Level level, BlockPos pos, BlockState state, TreeSpileBlockEntity blockEntity) {
+        if (level.isClientSide()) return;
 
-        this.setChanged(); // Tells Minecraft to save the Block Entity chunk data
+        blockEntity.validationTimer++;
+        if (blockEntity.validationTimer >= 100) {
+            blockEntity.validationTimer = 0;
+            boolean isTreeStillValid = blockEntity.checkTreeStructure(level, pos, state);
+            if (state.getValue(TreeSpileBlock.ATTACHED_TO_TREE) != isTreeStillValid) {
+                level.setBlock(pos, state.setValue(TreeSpileBlock.ATTACHED_TO_TREE, isTreeStillValid), 3);
+            }
+        }
+
+        if (state.getValue(TreeSpileBlock.ATTACHED_TO_TREE)) {
+            blockEntity.operationTimer++;
+            if (blockEntity.operationTimer >= 200) {
+                blockEntity.operationTimer = 0;
+                FluidStack resinDrip = new FluidStack(AllFluids.RESIN.get(), 20);
+                blockEntity.getFluidTank().fill(resinDrip, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+            }
+        } else {
+            blockEntity.operationTimer = 0;
+        }
     }
 
     private boolean checkTreeStructure(Level level, BlockPos pos, BlockState state) {
