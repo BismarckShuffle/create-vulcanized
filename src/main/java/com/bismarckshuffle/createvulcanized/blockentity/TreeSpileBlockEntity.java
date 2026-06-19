@@ -114,29 +114,38 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
         Direction facing = state.getValue(TreeSpileBlock.FACING);
         BlockPos startLogPos = pos.relative(facing.getOpposite());
 
-        // 1. Core Pillar Validation: Ensure all 3 required log spaces are completely solid wood
+        // 1. Core Pillar Validation: Count straight logs directly above the tap point
         int logCount = 0;
         for (int i = 0; i < 6; i++) {
             BlockState logState = level.getBlockState(startLogPos.above(i));
             if (logState.is(net.minecraft.tags.BlockTags.LOGS)) {
                 logCount++;
             } else {
-                break; // Stop counting the moment a block type breaks continuity
+                break; // Stop counting the moment a block type breaks vertical continuity
             }
         }
 
-        // Minimum requirement of 3 blocks to form a stable tree pillar
+        // Minimum structural requirement of 3 blocks to form a stable tree pillar baseline
         if (logCount < 3) return false;
 
-        // 2. Fixed Canopy Scanning: Check for leaves right above our required 3-log pillar
-        BlockPos canopyPos = startLogPos.above(logCount);
-        for (int x = -1; x <= 1; x++) {
-            for (int z = -1; z <= 1; z++) {
-                if (level.getBlockState(canopyPos.offset(x, 0, z)).is(net.minecraft.tags.BlockTags.LEAVES)) {
-                    return true; // Dynamic structure validation complete!
+        // 2. Adaptive Acacia-Proof Canopy Scanning
+        // If the straight log pillar finishes, look for leaves starting right there.
+        // To support crooked, diagonal trunks (like Acacia), we expand the check window
+        // up to 4 blocks higher and 2 blocks outward from the top of our log count.
+        BlockPos canopyBasePos = startLogPos.above(logCount);
+
+        for (int yOffset = 0; yOffset <= 4; yOffset++) {
+            // Expand the search radius as we go higher to catch wide umbrella branches
+            int searchRadius = (yOffset >= 2) ? 2 : 1;
+
+            for (int x = -searchRadius; x <= searchRadius; x++) {
+                for (int z = -searchRadius; z <= searchRadius; z++) {
+                    BlockPos checkPos = canopyBasePos.offset(x, yOffset, z);
+                    if (level.getBlockState(checkPos).is(net.minecraft.tags.BlockTags.LEAVES)) {
+                        return true; // Valid live canopy discovered, structure approved!
+                    }
                 }
             }
-
         }
 
         return false;
