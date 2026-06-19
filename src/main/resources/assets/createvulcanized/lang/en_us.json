@@ -6,5 +6,7 @@
   "item.createvulcanized.rubber": "Raw Rubber",
   "itemGroup.createvulcanized": "Create: Vulcanized",
 
-  "tooltip.createvulcanized.tree_spile.empty": "  Empty (0 / %s mB)"
+  "tooltip.createvulcanized.tree_spile.empty": "  Empty (0 / %s mB)",
+  "tooltip.createvulcanized.tree_spile.desc": "Extracts raw tree syrup when tapped securely into a live log trunk.",
+  "tooltip.createvulcanized.tree_spile.warning": "Notice: Crooked trees (like Acacia) require at least 2 blocks of straight vertical trunk clearance above the spile to function properly."
 }

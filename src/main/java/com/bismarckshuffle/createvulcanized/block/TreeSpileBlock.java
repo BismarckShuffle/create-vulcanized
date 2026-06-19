@@ -8,16 +8,20 @@ import com.mojang.serialization.MapCodec;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.equipment.wrench.WrenchItem;
 import com.simibubi.create.foundation.block.IBE;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
@@ -43,6 +47,7 @@ import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
+import java.util.List;
 
 public class TreeSpileBlock extends HorizontalDirectionalBlock implements EntityBlock, IBE<TreeSpileBlockEntity>, IWrenchable {
 
@@ -340,6 +345,18 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         // This is skipped because we manually generate the drop item below right before the block vanishes!
     }
 
+    @Override
+    public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
+        super.appendHoverText(stack, context, tooltip, flag);
+
+        // Core utility functional layout description
+        tooltip.add(Component.translatable("tooltip.createvulcanized.tree_spile.desc")
+                .withStyle(ChatFormatting.GRAY));
+
+        // The specific structural guidance alert for crooked or curved wood types
+        tooltip.add(Component.translatable("tooltip.createvulcanized.tree_spile.warning")
+                .withStyle(ChatFormatting.GOLD));
+    }
     // Uses vanilla DataComponents.BLOCK_ENTITY_DATA
     // This creates a standard item tooltip readout and saves the data automatically
 //    private ItemStack saveBlockEntityDataToItem(LevelReader level, BlockPos pos, ItemStack stack) {
