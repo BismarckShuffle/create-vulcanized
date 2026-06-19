@@ -1,14 +1,13 @@
-package com.bismarckshuffle.createvulcanized;
+package com.bismarckshuffle.createvulcanized.events;
 
+import com.bismarckshuffle.createvulcanized.CreateVulcanized;
+import com.bismarckshuffle.createvulcanized.registry.AllFluids;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.resources.ResourceLocation;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.extensions.common.IClientFluidTypeExtensions;
-import net.neoforged.neoforge.client.extensions.common.RegisterClientExtensionsEvent;
 
 @EventBusSubscriber(modid = CreateVulcanized.ID, value = Dist.CLIENT)
 public class ClientModEvents {

@@ -4,5 +4,7 @@
   "fluid.createvulcanized.resin": "Tree Resin",
   "item.createvulcanized.resin_bucket": "Resin Bucket",
   "item.createvulcanized.rubber": "Raw Rubber",
-  "itemGroup.createvulcanized": "Create: Vulcanized"
+  "itemGroup.createvulcanized": "Create: Vulcanized",
+
+  "tooltip.createvulcanized.tree_spile.empty": "  Empty (0 / %s mB)"
 }

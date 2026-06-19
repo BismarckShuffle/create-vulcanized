@@ -1,5 +1,6 @@
 package com.bismarckshuffle.createvulcanized;
 
+import com.bismarckshuffle.createvulcanized.registry.*;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.item.ItemDescription;
 import com.simibubi.create.foundation.item.KineticStats;
@@ -34,6 +35,7 @@ public class CreateVulcanized {
         AllBlocks.register();
         AllBlockEntities.register();
         AllFluids.register();
+        AllMenuTypes.register();
 
         modBus.addListener(this::onCommonSetup);
         modBus.addListener(this::onClientSetup);

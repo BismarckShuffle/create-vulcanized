@@ -1,5 +1,6 @@
-package com.bismarckshuffle.createvulcanized;
+package com.bismarckshuffle.createvulcanized.events;
 
+import com.bismarckshuffle.createvulcanized.CreateVulcanized;
 import com.bismarckshuffle.createvulcanized.block.TreeSpileBlock;
 import com.bismarckshuffle.createvulcanized.blockentity.TreeSpileBlockEntity;
 import net.minecraft.core.BlockPos;

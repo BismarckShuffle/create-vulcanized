@@ -1,5 +1,6 @@
-package com.bismarckshuffle.createvulcanized;
+package com.bismarckshuffle.createvulcanized.registry;
 
+import com.bismarckshuffle.createvulcanized.CreateVulcanized;
 import com.bismarckshuffle.createvulcanized.block.TreeSpileBlock;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.util.entry.BlockEntry;

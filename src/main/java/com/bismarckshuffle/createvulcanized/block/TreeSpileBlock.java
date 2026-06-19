@@ -1,8 +1,8 @@
 package com.bismarckshuffle.createvulcanized.block;
 
-import com.bismarckshuffle.createvulcanized.AllBlockEntities;
+import com.bismarckshuffle.createvulcanized.registry.AllBlockEntities;
 
-import com.bismarckshuffle.createvulcanized.AllFluids;
+import com.bismarckshuffle.createvulcanized.registry.AllFluids;
 import com.bismarckshuffle.createvulcanized.blockentity.TreeSpileBlockEntity;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
@@ -255,8 +255,24 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                     return ItemInteractionResult.SUCCESS;
                 }
             }
+
+            player.openMenu(spileBe, (net.minecraft.network.RegistryFriendlyByteBuf buffer) -> buffer.writeBlockPos(pos));
+            spileBe.startOpen(player); // Trigger the opening sound cue
+            return ItemInteractionResult.SUCCESS;
         }
 
         return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
+    }
+
+    @Override
+    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+        if (!state.is(newState.getBlock())) {
+            net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(pos);
+            if (be instanceof TreeSpileBlockEntity) {
+                // Forcefully drop any leftover slot contents if items are added later
+                level.updateNeighbourForOutputSignal(pos, this);
+            }
+            super.onRemove(state, level, pos, newState, isMoving);
+        }
     }
 }
