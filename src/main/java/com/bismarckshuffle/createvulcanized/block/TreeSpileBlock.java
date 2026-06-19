@@ -6,10 +6,12 @@ import com.bismarckshuffle.createvulcanized.registry.AllFluids;
 import com.bismarckshuffle.createvulcanized.blockentity.TreeSpileBlockEntity;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
+import com.simibubi.create.content.equipment.wrench.WrenchItem;
 import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
@@ -21,6 +23,7 @@ import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -31,11 +34,13 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.*;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidUtil;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 
@@ -133,30 +138,30 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         // 1. CROUCH + WRENCH DISMANTLE HANDLER (WITH INVENTORY RETENTION)
         if (player != null && player.isShiftKeyDown()) {
             if (!level.isClientSide()) {
-                // Prepare the item drop stack frame
                 ItemStack dropStack = new ItemStack(this.asItem());
 
-                // Fetch the active Block Entity before erasing it from the grid world
                 this.withBlockEntityDo(level, pos, spileBe -> {
-                    // Instruct the Block Entity to write its full data (including its fluid tank) into a transient NBT compound
-                    net.minecraft.nbt.CompoundTag blockEntityData = spileBe.saveWithFullMetadata(level.registryAccess());
+                    // Drop bucket items safely onto the floor
+                    ItemStackHandler inv = spileBe.getInventoryHandler();
+                    for (int i = 0; i < inv.getSlots(); i++) {
+                        ItemStack slotStack = inv.getStackInSlot(i);
+                        if (!slotStack.isEmpty()) {
+                            net.minecraft.world.Containers.dropItemStack(level, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, slotStack);
+                        }
+                    }
+                    // It excludes coordinates and ID automatically, ensuring items stack perfectly!
+                    net.minecraft.nbt.CompoundTag blockEntityData = spileBe.saveWithoutMetadata(level.registryAccess());
 
-                    // Minecraft 1.21 uses Data Components! Remove world-specific coordinate tags so it stacks cleanly
-                    blockEntityData.remove("id");
-                    blockEntityData.remove("x");
-                    blockEntityData.remove("y");
-                    blockEntityData.remove("z");
-
-                    // Bake the compound tag directly into the item's BLOCK_ENTITY_DATA component layer
+                    // Bake the data directly into the item's 1.21 Data Component layer
                     if (!blockEntityData.isEmpty()) {
-                        dropStack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(blockEntityData));
+                        dropStack.set(net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA, net.minecraft.world.item.component.CustomData.of(blockEntityData));
                     }
                 });
 
-                // Clear the block from the world grid safely (false avoids triggering standard loot drops)
+                // Clear the block safely without spawning duplicate normal loot tables
                 level.destroyBlock(pos, false, player);
 
-                // Insert the custom cargo-loaded item directly into the player's inventory bar
+                // Give the data-retaining spile item directly to the player
                 if (!player.getInventory().add(dropStack)) {
                     player.drop(dropStack, false);
                 }
@@ -172,6 +177,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
             level.setBlock(pos, newState, 3);
             IWrenchable.playRotateSound(level, pos);
 
+            // Ensure this maps to the structural validation reset trigger
             this.withBlockEntityDo(level, pos, spileBe -> spileBe.forceTreeRecheck(level, pos, newState));
         }
 
@@ -215,6 +221,10 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
             return ItemInteractionResult.SUCCESS;
         }
 
+        if (stack.getItem() instanceof WrenchItem) {
+            return ItemInteractionResult.PASS_TO_DEFAULT_BLOCK_INTERACTION;
+        }
+
         net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(pos);
         if (be instanceof TreeSpileBlockEntity spileBe) {
             net.neoforged.neoforge.fluids.capability.IFluidHandler tankHandler = spileBe.getFluidTank();
@@ -243,12 +253,11 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                     }
 
                     level.blockEntityChanged(pos);
-                    return ItemInteractionResult.SUCCESS;
                 } else {
                     // Alert the action bar if the transaction violates the tolerance barrier
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("Receptacle is too full to accept a bucket"), true);
-                    return ItemInteractionResult.SUCCESS;
                 }
+                return ItemInteractionResult.SUCCESS;
             }
 
             // 3. EXPLICIT BUCKET EXTRACTION ACTION
@@ -275,12 +284,75 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
         if (!state.is(newState.getBlock())) {
-            net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof TreeSpileBlockEntity) {
-                // Forcefully drop any leftover slot contents if items are added later
-                level.updateNeighbourForOutputSignal(pos, this);
+            if (!level.isClientSide()) {
+                net.minecraft.world.level.block.entity.BlockEntity entity = level.getBlockEntity(pos);
+                if (entity instanceof TreeSpileBlockEntity spileBe) {
+
+                    // A. Drop the contents of your bucket item slots onto the floor grid
+                    ItemStackHandler inv = spileBe.getInventoryHandler();
+                    for (int i = 0; i < inv.getSlots(); i++) {
+                        ItemStack slotStack = inv.getStackInSlot(i);
+                        if (!slotStack.isEmpty()) {
+                            net.minecraft.world.Containers.dropItemStack(level, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, slotStack);
+                        }
+                    }
+
+                    // B. IF MINED: Drop the block item itself with full fluid cargo attached!
+                    // (We handle this here because onRemove fires immediately when a player breaks the block)
+                    ItemStack spileDrop = new ItemStack(this.asItem());
+                    net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+                    tag.put("FluidTank", spileBe.getFluidTank().writeToNBT(level.registryAccess(), new net.minecraft.nbt.CompoundTag()));
+
+                    if (!spileBe.getFluidTank().isEmpty()) {
+                        spileDrop.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(tag));
+                    }
+
+                    // Drop the item into the world safely
+                    net.minecraft.world.Containers.dropItemStack(level, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, spileDrop);
+
+                    level.updateNeighbourForOutputSignal(pos, this);
+                }
             }
             super.onRemove(state, level, pos, newState, isMoving);
         }
     }
+
+    @Override
+    public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader level, BlockPos pos, Player player) {
+        ItemStack stack = super.getCloneItemStack(state, target, level, pos, player);
+
+        // Safety: Only fetch the block entity if we are running on the server thread
+        // to prevent client-side NullPointerExceptions and network disconnects
+        if (level instanceof Level world && !world.isClientSide()) {
+            net.minecraft.world.level.block.entity.BlockEntity be = world.getBlockEntity(pos);
+            if (be instanceof TreeSpileBlockEntity spileBe) {
+                net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+                tag.put("FluidTank", spileBe.getFluidTank().writeToNBT(world.registryAccess(), new net.minecraft.nbt.CompoundTag()));
+                stack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(tag));
+            }
+        }
+        return stack;
+    }
+
+    @Override
+    public void spawnAfterBreak(BlockState state, ServerLevel level, BlockPos pos, ItemStack tool, boolean dropExperience) {
+        super.spawnAfterBreak(state, level, pos, tool, dropExperience);
+        // This is skipped because we manually generate the drop item below right before the block vanishes!
+    }
+
+    // Uses vanilla DataComponents.BLOCK_ENTITY_DATA
+    // This creates a standard item tooltip readout and saves the data automatically
+//    private ItemStack saveBlockEntityDataToItem(LevelReader level, BlockPos pos, ItemStack stack) {
+//        net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(pos);
+//        if (be instanceof TreeSpileBlockEntity spileBe) {
+//            net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
+//
+//            // Invoke the block entity's native NBT serialization loop to pack up BOTH the fluid tank and the inventory handler instantly
+//            spileBe.saveAdditional(tag, level.registryAccess());
+//
+//            // Set it as a standard vanilla block entity component modifier
+//            stack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(tag));
+//        }
+//        return stack;
+//    }
 }

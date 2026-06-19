@@ -28,6 +28,7 @@ public class AllBlocks {
                     .isSuffocating((state, level, pos) -> false)
                     .isViewBlocking((state, level, pos) -> false))
             .transform(axeOrPickaxe())
+            .loot((provider, block) -> provider.dropOther(block, net.minecraft.world.item.Items.AIR))
             .simpleItem()
             .register();
 
