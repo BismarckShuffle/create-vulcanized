@@ -193,9 +193,7 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
                 // 2. EXTRACTION OPERATION: Empty bucket -> Filled Resin Bucket
                 if (stack.is(Items.BUCKET) && fluidAmount >= 1000) {
-                    // Activate the lock flag before executing any inventory mutations
                     isProcessing = true;
-
                     try {
                         fluidTank.drain(1000, IFluidHandler.FluidAction.EXECUTE);
                         stack.shrink(1);
@@ -205,37 +203,33 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
                         if (stack.isEmpty()) {
                             setStackInSlot(slot, filledBucket);
                         } else {
-                            net.minecraft.world.Containers.dropItemStack(
-                                    level,
-                                    worldPosition.getX(),
-                                    worldPosition.getY() + 0.5,
-                                    worldPosition.getZ(),
-                                    filledBucket
-                            );
+                            net.minecraft.world.Containers.dropItemStack(level, worldPosition.getX(), worldPosition.getY() + 0.5, worldPosition.getZ(), filledBucket);
                         }
+
+                        // Play fill audio inside the screen container slot loop
+                        level.playSound(null, worldPosition, net.minecraft.sounds.SoundEvents.BUCKET_FILL, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+
                         level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
                     } finally {
-                        // Deactivate the lock flag once the modifications are safely wrapped up
                         isProcessing = false;
                     }
                 }
-
-                // 3. DEPOSITION OPERATION: Full Resin Bucket -> Empty Bucket
                 else if (stack.is(AllFluids.RESIN.get().getBucket())) {
                     int emptySpace = MAX_CAPACITY - fluidAmount;
 
                     if (emptySpace >= 800) {
-                        // Activate the lock flag before emptying the bucket item stack
                         isProcessing = true;
-
                         try {
                             int actualFillAmount = Math.min(1000, emptySpace);
                             fluidTank.fill(new FluidStack(AllFluids.RESIN.get(), actualFillAmount), IFluidHandler.FluidAction.EXECUTE);
 
                             setStackInSlot(slot, new ItemStack(Items.BUCKET));
+
+                            // Play empty audio inside the screen container slot loop
+                            level.playSound(null, worldPosition, net.minecraft.sounds.SoundEvents.BUCKET_EMPTY, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+
                             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
                         } finally {
-                            // Deactivate the lock flag cleanly
                             isProcessing = false;
                         }
                     }

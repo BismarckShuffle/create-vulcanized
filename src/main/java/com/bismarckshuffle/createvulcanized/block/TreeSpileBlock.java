@@ -219,16 +219,19 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         if (be instanceof TreeSpileBlockEntity spileBe) {
             net.neoforged.neoforge.fluids.capability.IFluidHandler tankHandler = spileBe.getFluidTank();
 
-            // 2. EXPLICIT BUCKET EMPTYING ACTION (With Threshold Protection Guard)
+            // 2. EXPLICIT BUCKET EMPTYING ACTION (With Updated 2000mB and 800mB Tolerance Threshold)
             if (stack.is(AllFluids.RESIN.get().getBucket())) {
                 int currentFluid = tankHandler.getFluidInTank(0).getAmount();
+                int emptySpace = TreeSpileBlockEntity.MAX_CAPACITY - currentFluid;
 
-                // THRESHOLD CONSTRAINT: Only allow the player to dump a bucket if the tank contains 200mB or less.
-                // This ensures you can never accidentally void and waste more than 200mB of resin!
-                if (currentFluid <= 200) {
-                    // Force the internal reservoir up to its maximum 1000mB capacity layer
-                    FluidStack topOff = new FluidStack(AllFluids.RESIN.get(), 1000 - currentFluid);
+                // Only allow the player to dump a bucket if there is at least 800mB of empty space left
+                if (emptySpace >= 800) {
+                    int actualFillAmount = Math.min(1000, emptySpace);
+                    FluidStack topOff = new FluidStack(AllFluids.RESIN.get(), actualFillAmount);
                     tankHandler.fill(topOff, IFluidHandler.FluidAction.EXECUTE);
+
+                    // Play the liquid emptying / pouring audio cue
+                    level.playSound(null, pos, net.minecraft.sounds.SoundEvents.BUCKET_EMPTY, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
 
                     // Update the player inventory held items cleanly
                     if (!player.getAbilities().instabuild) {
@@ -240,24 +243,29 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                     }
 
                     level.blockEntityChanged(pos);
+                    return ItemInteractionResult.SUCCESS;
                 } else {
-                    // If the tank fails the safety threshold check, send an alert to the action bar
+                    // Alert the action bar if the transaction violates the tolerance barrier
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("Receptacle is too full to accept a bucket"), true);
+                    return ItemInteractionResult.SUCCESS;
                 }
-                return ItemInteractionResult.SUCCESS;
             }
 
             // 3. EXPLICIT BUCKET EXTRACTION ACTION
             if (stack.is(Items.BUCKET)) {
                 boolean transactionSuccess = FluidUtil.interactWithFluidHandler(player, hand, tankHandler);
                 if (transactionSuccess) {
+                    // Play the fluid filling / scooping audio cue
+                    level.playSound(null, pos, net.minecraft.sounds.SoundEvents.BUCKET_FILL, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+
                     level.blockEntityChanged(pos);
                     return ItemInteractionResult.SUCCESS;
                 }
             }
 
+            // 4. GUI SECTOR FALLBACK: Open the container window if holding a non-fluid item
             player.openMenu(spileBe, (net.minecraft.network.RegistryFriendlyByteBuf buffer) -> buffer.writeBlockPos(pos));
-            spileBe.startOpen(player); // Trigger the opening sound cue
+            spileBe.startOpen(player);
             return ItemInteractionResult.SUCCESS;
         }
 
