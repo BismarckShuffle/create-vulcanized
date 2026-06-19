@@ -10,11 +10,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 
 import java.util.List;
@@ -76,36 +74,26 @@ public class TreeSpileBlockEntity extends SmartBlockEntity {
     }
 
     // This is the server-side tick loop called by your TreeSpileBlock getTicker method
-    public void tick(Level level, BlockPos pos, BlockState state, TreeSpileBlockEntity be) {
-        // STEP 1: If the spout model is unattached (tree is missing), STOP everything instantly!
+    public void tick(Level level, BlockState state, TreeSpileBlockEntity be) {
+        if (level.isClientSide()) return;
+
+        // STEP 1: If the tree is missing, stop the process immediately
         if (!state.getValue(TreeSpileBlock.ATTACHED_TO_TREE)) {
-            be.extractionTimer = 0; // Reset progress
+            be.extractionTimer = 0;
             return;
         }
 
-        // STEP 2: Progress the timer if securely attached
+        // STEP 2: Progress the extraction timer
         be.extractionTimer++;
         if (be.extractionTimer >= TICK_DELAY) {
-            be.extractionTimer = 0; // Reset cycle
+            be.extractionTimer = 0; // Reset the cycle
 
-            // STEP 3: Find the block space directly underneath the spile snout
-            Direction forward = state.getValue(TreeSpileBlock.FACING);
-            BlockPos basinPos = pos.relative(forward).below();
+            // STEP 3: Generate 20mB of resin and deposit it into the internal tank
+            net.neoforged.neoforge.fluids.FluidStack resinDroplet =
+                    new net.neoforged.neoforge.fluids.FluidStack(AllFluids.RESIN.get(), 20);
 
-            // STEP 4: Look for an interactive container/receptacle basin directly below
-            BlockEntity targetEntity = level.getBlockEntity(basinPos);
-            if (targetEntity != null) {
-                // Fetch the fluid storage capabilities of the basin underneath
-                var fluidCap = level.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.BLOCK, basinPos, Direction.UP);
-
-                if (fluidCap != null) {
-                    // Create a small droplet stack of your custom Resin fluid (20 mB)
-                    FluidStack resinDroplet = new FluidStack(AllFluids.RESIN.get().getSource(), 20);
-
-                    // Forcefully pump/fill the droplet straight into the basin below!
-                    fluidCap.fill(resinDroplet, IFluidHandler.FluidAction.EXECUTE);
-                }
-            }
+            // The fluid accumulates inside the block entity up to the 1000mB limit
+            be.getFluidTank().fill(resinDroplet, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
         }
     }
 

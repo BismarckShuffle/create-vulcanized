@@ -2,6 +2,7 @@ package com.bismarckshuffle.createvulcanized.block;
 
 import com.bismarckshuffle.createvulcanized.AllBlockEntities;
 
+import com.bismarckshuffle.createvulcanized.AllFluids;
 import com.bismarckshuffle.createvulcanized.blockentity.TreeSpileBlockEntity;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
@@ -9,9 +10,12 @@ import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
@@ -26,8 +30,12 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.*;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.FluidUtil;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 
 import javax.annotation.Nullable;
 
@@ -111,7 +119,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         if (level.isClientSide) return null; // Only calculate resin on the server
         return (lvl, pos, st, be) -> {
             if (be instanceof TreeSpileBlockEntity spileBe) {
-                spileBe.tick(lvl, pos, st, spileBe);
+                spileBe.tick(lvl, st, spileBe);
             }
         };
     }
@@ -198,5 +206,57 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     @Override
     protected boolean canBeReplaced(BlockState state, BlockPlaceContext context) {
         return false;
+    }
+
+    @Override
+    protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
+        // 1. DUAL-THREAD SAFETY FLAG: Confine the logic checks strictly to the server thread pass
+        if (level.isClientSide()) {
+            return ItemInteractionResult.SUCCESS;
+        }
+
+        net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(pos);
+        if (be instanceof TreeSpileBlockEntity spileBe) {
+            net.neoforged.neoforge.fluids.capability.IFluidHandler tankHandler = spileBe.getFluidTank();
+
+            // 2. EXPLICIT BUCKET EMPTYING ACTION (With Threshold Protection Guard)
+            if (stack.is(AllFluids.RESIN.get().getBucket())) {
+                int currentFluid = tankHandler.getFluidInTank(0).getAmount();
+
+                // THRESHOLD CONSTRAINT: Only allow the player to dump a bucket if the tank contains 200mB or less.
+                // This ensures you can never accidentally void and waste more than 200mB of resin!
+                if (currentFluid <= 200) {
+                    // Force the internal reservoir up to its maximum 1000mB capacity layer
+                    FluidStack topOff = new FluidStack(AllFluids.RESIN.get(), 1000 - currentFluid);
+                    tankHandler.fill(topOff, IFluidHandler.FluidAction.EXECUTE);
+
+                    // Update the player inventory held items cleanly
+                    if (!player.getAbilities().instabuild) {
+                        stack.shrink(1);
+                        ItemStack emptyBucket = new ItemStack(Items.BUCKET);
+                        if (!player.getInventory().add(emptyBucket)) {
+                            player.drop(emptyBucket, false);
+                        }
+                    }
+
+                    level.blockEntityChanged(pos);
+                } else {
+                    // If the tank fails the safety threshold check, send an alert to the action bar
+                    player.displayClientMessage(net.minecraft.network.chat.Component.literal("Receptacle is too full to accept a bucket"), true);
+                }
+                return ItemInteractionResult.SUCCESS;
+            }
+
+            // 3. EXPLICIT BUCKET EXTRACTION ACTION
+            if (stack.is(Items.BUCKET)) {
+                boolean transactionSuccess = FluidUtil.interactWithFluidHandler(player, hand, tankHandler);
+                if (transactionSuccess) {
+                    level.blockEntityChanged(pos);
+                    return ItemInteractionResult.SUCCESS;
+                }
+            }
+        }
+
+        return super.useItemOn(stack, state, level, pos, player, hand, hitResult);
     }
 }
