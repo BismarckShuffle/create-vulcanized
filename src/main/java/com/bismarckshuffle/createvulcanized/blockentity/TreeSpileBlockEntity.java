@@ -3,25 +3,31 @@ package com.bismarckshuffle.createvulcanized.blockentity;
 import com.bismarckshuffle.createvulcanized.AllFluids;
 import com.bismarckshuffle.createvulcanized.block.TreeSpileBlock;
 
+import com.simibubi.create.foundation.blockEntity.SmartBlockEntity;
+import com.simibubi.create.foundation.blockEntity.behaviour.BlockEntityBehaviour;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.material.Fluid;
 import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import net.neoforged.neoforge.fluids.capability.templates.FluidTank;
 
-public class TreeSpileBlockEntity extends BlockEntity {
+import java.util.List;
 
-    // Adjust these values to balance your mod!
-    private static final int TICK_DELAY_SECONDS = 10;
-    private static final int RESIN_PER_CYCLE = 50; // Millibuckets (mB). 1000mB = 1 Bucket.
-    private static final int TICK_INTERVAL = TICK_DELAY_SECONDS * 20; // 20 ticks = 1 second
+public class TreeSpileBlockEntity extends SmartBlockEntity {
+
+//    // Adjust these values to balance your mod!
+//    private static final int TICK_DELAY_SECONDS = 10;
+//    private static final int RESIN_PER_CYCLE = 50; // Millibuckets (mB). 1000mB = 1 Bucket.
+//    private static final int TICK_INTERVAL = TICK_DELAY_SECONDS * 20; // 20 ticks = 1 second
+    // Internal timer to control how often the spile extracts resin
+    private int extractionTimer = 0;
+    private static final int TICK_DELAY = 100; // Extracts resin every 5 seconds (20 ticks = 1 second)
 
     protected final FluidTank fluidTank = new FluidTank(1000) {
         @Override
@@ -37,9 +43,6 @@ public class TreeSpileBlockEntity extends BlockEntity {
         }
     };
 
-    private int validationTimer = 0;
-    private int operationTimer = 0;
-
     public TreeSpileBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
     }
@@ -49,82 +52,101 @@ public class TreeSpileBlockEntity extends BlockEntity {
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.put("FluidTank", this.fluidTank.writeToNBT(registries, new CompoundTag()));
+    public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
+        // This is where you can add Create behaviors (like scroll values or progress bars) later
     }
 
+
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void read(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.read(tag, registries, clientPacket);
+
         if (tag.contains("FluidTank")) {
             this.fluidTank.readFromNBT(registries, tag.getCompound("FluidTank"));
         }
     }
 
-    // Keep your exact tick execution loop body here!
-    public static void tick(Level level, BlockPos pos, BlockState state, TreeSpileBlockEntity blockEntity) {
-        if (level.isClientSide()) return;
+    @Override
+    public void write(CompoundTag tag, HolderLookup.Provider registries, boolean clientPacket) {
+        super.write(tag, registries, clientPacket);
 
-        blockEntity.validationTimer++;
-        if (blockEntity.validationTimer >= 100) {
-            blockEntity.validationTimer = 0;
-            boolean isTreeStillValid = blockEntity.checkTreeStructure(level, pos, state);
-            if (state.getValue(TreeSpileBlock.ATTACHED_TO_TREE) != isTreeStillValid) {
-                level.setBlock(pos, state.setValue(TreeSpileBlock.ATTACHED_TO_TREE, isTreeStillValid), 3);
-            }
+        // Create handles client/server filtering automatically.
+        // We save the tank data regardless of whether it's a world save or network sync packet.
+        tag.put("FluidTank", this.fluidTank.writeToNBT(registries, new CompoundTag()));
+    }
+
+    // This is the server-side tick loop called by your TreeSpileBlock getTicker method
+    public void tick(Level level, BlockPos pos, BlockState state, TreeSpileBlockEntity be) {
+        // STEP 1: If the spout model is unattached (tree is missing), STOP everything instantly!
+        if (!state.getValue(TreeSpileBlock.ATTACHED_TO_TREE)) {
+            be.extractionTimer = 0; // Reset progress
+            return;
         }
 
-        if (state.getValue(TreeSpileBlock.ATTACHED_TO_TREE)) {
-            blockEntity.operationTimer++;
-            if (blockEntity.operationTimer >= 200) {
-                blockEntity.operationTimer = 0;
-                FluidStack resinDrip = new FluidStack(AllFluids.RESIN.get(), 20);
-                blockEntity.getFluidTank().fill(resinDrip, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        // STEP 2: Progress the timer if securely attached
+        be.extractionTimer++;
+        if (be.extractionTimer >= TICK_DELAY) {
+            be.extractionTimer = 0; // Reset cycle
+
+            // STEP 3: Find the block space directly underneath the spile snout
+            Direction forward = state.getValue(TreeSpileBlock.FACING);
+            BlockPos basinPos = pos.relative(forward).below();
+
+            // STEP 4: Look for an interactive container/receptacle basin directly below
+            BlockEntity targetEntity = level.getBlockEntity(basinPos);
+            if (targetEntity != null) {
+                // Fetch the fluid storage capabilities of the basin underneath
+                var fluidCap = level.getCapability(net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.BLOCK, basinPos, Direction.UP);
+
+                if (fluidCap != null) {
+                    // Create a small droplet stack of your custom Resin fluid (20 mB)
+                    FluidStack resinDroplet = new FluidStack(AllFluids.RESIN.get().getSource(), 20);
+
+                    // Forcefully pump/fill the droplet straight into the basin below!
+                    fluidCap.fill(resinDroplet, IFluidHandler.FluidAction.EXECUTE);
+                }
             }
-        } else {
-            blockEntity.operationTimer = 0;
         }
     }
 
     private boolean checkTreeStructure(Level level, BlockPos pos, BlockState state) {
         Direction facing = state.getValue(TreeSpileBlock.FACING);
-        // The tree wood must be located directly behind the block orientation
-        BlockPos currentLogPos = pos.relative(facing.getOpposite());
+        BlockPos startLogPos = pos.relative(facing.getOpposite());
 
-        // 1. Trace down to ground or look up to find a sequence of 3 wood logs
+        // 1. Core Pillar Validation: Ensure all 3 required log spaces are completely solid wood
         int logCount = 0;
-        for (int i = 0; i < 5; i++) { // Check up to 5 blocks high for safety
-            BlockState logState = level.getBlockState(currentLogPos.above(i));
-            if (logState.is(BlockTags.LOGS)) {
+        for (int i = 0; i < 6; i++) {
+            BlockState logState = level.getBlockState(startLogPos.above(i));
+            if (logState.is(net.minecraft.tags.BlockTags.LOGS)) {
                 logCount++;
             } else {
-                break;
+                break; // Stop counting the moment a block type breaks continuity
             }
         }
 
+        // Minimum requirement of 3 blocks to form a stable tree pillar
         if (logCount < 3) return false;
 
-        // 2. Scan the immediate canopy area above the log tower for leaves
-        BlockPos canopyPos = currentLogPos.above(logCount);
+        // 2. Fixed Canopy Scanning: Check for leaves right above our required 3-log pillar
+        BlockPos canopyPos = startLogPos.above(logCount);
         for (int x = -1; x <= 1; x++) {
             for (int z = -1; z <= 1; z++) {
-                if (level.getBlockState(canopyPos.offset(x, 0, z)).is(BlockTags.LEAVES)) {
-                    return true; // Found a valid log stack capped with leaves!
+                if (level.getBlockState(canopyPos.offset(x, 0, z)).is(net.minecraft.tags.BlockTags.LEAVES)) {
+                    return true; // Dynamic structure validation complete!
                 }
             }
+
         }
 
         return false;
     }
 
     public void forceTreeRecheck(Level level, BlockPos pos, BlockState state) {
-        this.validationTimer = 0; // Reset your optimization timer
 
-        // Run your array log/leaf verification logic immediately
+        // Run array log/leaf verification logic immediately
         boolean isLegitTree = this.checkTreeStructure(level, pos, state);
 
-        // Forcefully apply the true/false visual blockstate look to the world grid
+        // Forcefully apply the true/false visual block state look to the world grid
         if (state.getValue(TreeSpileBlock.ATTACHED_TO_TREE) != isLegitTree) {
             level.setBlock(pos, state.setValue(TreeSpileBlock.ATTACHED_TO_TREE, isLegitTree), 3);
         }

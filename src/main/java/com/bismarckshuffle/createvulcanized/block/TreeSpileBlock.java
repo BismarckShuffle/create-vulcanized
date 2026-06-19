@@ -15,8 +15,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.item.context.UseOnContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
@@ -25,9 +25,9 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.BooleanProperty;
-import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.properties.*;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
 
 import javax.annotation.Nullable;
 
@@ -37,9 +37,16 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty ATTACHED_TO_TREE = BooleanProperty.create("attached_to_tree");
 
+    // TALL WORKING HITBOX: Expanded full-width bounds for when the spile is active (16x16 wide, 24 high)
+    private static final VoxelShape TALL_ATTACHED_SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 24, 16.0D);
+
+    // SHORT IDLE HITBOX: Standard single-block boundaries for when the spile is unattached/placed anywhere else
+    private static final VoxelShape SHORT_IDLE_SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 16.0D, 16.0D);
+
+
     public TreeSpileBlock(Properties properties) {
         super(properties);
-        // 2. Register the default state using the FACING property inherited from the parent class
+        // Register the default state using the FACING property inherited from the parent class
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
                 .setValue(ATTACHED_TO_TREE, false));
@@ -53,7 +60,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
         // This tells Minecraft the block actually accepts the horizontal facing property
-        builder.add(BlockStateProperties.HORIZONTAL_FACING, ATTACHED_TO_TREE);
+        builder.add(FACING, ATTACHED_TO_TREE);
     }
 
     @Override
@@ -69,27 +76,22 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         }
     }
 
-    // 3. Override this method to capture the player's look vector on placement
+    @Nullable
     @Override
     public BlockState getStateForPlacement(BlockPlaceContext context) {
-        // 1. Grab the exact physical block face the player's crosshairs right-clicked!
         Direction clickedFace = context.getClickedFace();
-
-        // 2. Default fallback: If they placed it from inside a block or from the top/bottom face,
-        // fallback cleanly to their standard player looking direction.
         Direction placementFacing = context.getHorizontalDirection();
 
-        // 3. SMART ROTATION: If they clicked the side of a log, lock the spile's facing
-        // directly to that wall surface, completely ignoring diagonal player angles!
         if (clickedFace.getAxis().isHorizontal()) {
             placementFacing = clickedFace;
         }
 
-        // 4. Match the layout orientation cleanly to your model's Blockbench facing.
-        // If your spile places backward after this, swap `placementFacing` with `placementFacing.getOpposite()`
+        // Checks if placed against a tag-valid log directly upon world initialization
+        boolean isTree = context.getLevel().getBlockState(context.getClickedPos().relative(placementFacing.getOpposite())).is(net.minecraft.tags.BlockTags.LOGS);
+
         return this.defaultBlockState()
                 .setValue(FACING, placementFacing)
-                .setValue(ATTACHED_TO_TREE, false);
+                .setValue(ATTACHED_TO_TREE, isTree);
     }
 
     @Override
@@ -162,48 +164,39 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
             level.setBlock(pos, newState, 3);
             IWrenchable.playRotateSound(level, pos);
 
-            this.withBlockEntityDo(level, pos, spileBe -> {
-                spileBe.forceTreeRecheck(level, pos, newState);
-            });
+            this.withBlockEntityDo(level, pos, spileBe -> spileBe.forceTreeRecheck(level, pos, newState));
         }
 
         return InteractionResult.sidedSuccess(level.isClientSide());
     }
 
     @Override
-    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, BlockPos neighborPos, boolean isMoving) {
-        super.neighborChanged(state, level, pos, neighborBlock, neighborPos, isMoving);
-
-        if (!level.isClientSide()) {
-            // 1. Find the exact coordinate where the tree bark log is supposed to be
-            Direction facing = state.getValue(FACING);
-            BlockPos logPos = pos.relative(facing.getOpposite());
-
-            // 2. If the block update happened to that specific log position...
-            if (neighborPos.equals(logPos)) {
-                BlockState currentLogState = level.getBlockState(logPos);
-
-                // 3. Check if the block is no longer a valid log (e.g., turned to air or broken)
-                if (!currentLogState.is(net.minecraft.tags.BlockTags.LOGS)) {
-                    // Instantly break the spile smoothly and drop it as an item frame onto the floor!
-                    level.destroyBlock(pos, true);
-                    return;
-                }
-
-                // 4. Optimization: If the log is still there but changed types, wake up the scanner
-                // to verify the canopy leaf count is still valid
-                this.withBlockEntityDo(level, pos, spileBe -> {
-                    spileBe.forceTreeRecheck(level, pos, state);
-                });
-            }
-        }
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        return state.getValue(ATTACHED_TO_TREE) ? TALL_ATTACHED_SHAPE : SHORT_IDLE_SHAPE;
     }
 
-    // 5. Tell the placement engine that this block requires a valid wall attachment surface to survive
     @Override
-    public boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
-        Direction facing = state.getValue(FACING);
-        BlockPos logPos = pos.relative(facing.getOpposite());
-        return level.getBlockState(logPos).is(net.minecraft.tags.BlockTags.LOGS);
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+        if (state.getValue(ATTACHED_TO_TREE)) {
+            // Returns a full 2-block-tall solid physical wall to the building engine
+            return Block.box(0.0D, 4.0D, 0.0D, 16.0D, 32.0D, 16.0D);
+        }
+        return SHORT_IDLE_SHAPE;
+    }
+
+    @Override
+    protected boolean isCollisionShapeFullBlock(BlockState state, BlockGetter level, BlockPos pos) {
+        return false;
+    }
+
+    @Override
+    protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
+        return true;
+    }
+    // Tells the placement system that if something tries to click the top area of the block space,
+    // it cannot overwrite or clip through this block's extended boundaries.
+    @Override
+    protected boolean canBeReplaced(BlockState state, BlockPlaceContext context) {
+        return false;
     }
 }
