@@ -1,5 +1,6 @@
-package com.bismarckshuffle.createvulcanized;
+package com.bismarckshuffle.createvulcanized.registry;
 
+import com.bismarckshuffle.createvulcanized.CreateVulcanized;
 import com.tterrag.registrate.util.entry.RegistryEntry;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;

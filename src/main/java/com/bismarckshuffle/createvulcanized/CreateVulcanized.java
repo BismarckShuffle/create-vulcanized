@@ -1,24 +1,19 @@
 package com.bismarckshuffle.createvulcanized;
 
+import com.bismarckshuffle.createvulcanized.registry.*;
 import com.simibubi.create.foundation.data.CreateRegistrate;
 import com.simibubi.create.foundation.item.ItemDescription;
 import com.simibubi.create.foundation.item.KineticStats;
 import com.simibubi.create.foundation.item.TooltipModifier;
 import net.createmod.catnip.lang.FontHelper;
-import net.minecraft.client.renderer.ItemBlockRenderTypes;
-import net.minecraft.client.renderer.RenderType;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.capabilities.RegisterCapabilitiesEvent;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import static net.minecraft.client.renderer.ItemBlockRenderTypes.setRenderLayer;
 
 @Mod(CreateVulcanized.ID)
 public class CreateVulcanized {
@@ -40,14 +35,11 @@ public class CreateVulcanized {
         AllBlocks.register();
         AllBlockEntities.register();
         AllFluids.register();
+        AllMenuTypes.register();
 
         modBus.addListener(this::onCommonSetup);
         modBus.addListener(this::onClientSetup);
         modBus.addListener(this::registerCapabilities);
-    }
-
-    public static ResourceLocation asResource(String path) {
-        return ResourceLocation.fromNamespaceAndPath(ID, path);
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {
@@ -61,15 +53,25 @@ public class CreateVulcanized {
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
         // Bind a fluid capability handler specifically to Tree Spile Block Entity type
         event.registerBlockEntity(
-                Capabilities.FluidHandler.BLOCK,
+                net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.BLOCK,
                 AllBlockEntities.TREE_SPILE.get(),
-                (spileBe, direction) -> {
-                    // CONSTRAINT: Only expose the tank if a pipe is looking at the BOTTOM face
-                    // This is where the copper base is
-                    if (direction == Direction.DOWN) {
-                        return spileBe.getFluidTank();
+                (blockEntity, direction) -> {
+                    // 1. PLAYER COMPATIBILITY NULL-CHECK:
+                    // When a player right-clicks with a bucket, the direction passed into this capability is NULL.
+                    // Returning the tank here keeps player bucket interactions fully working from ALL 6 sides!
+                    if (direction == null) {
+                        return blockEntity.getFluidTank();
                     }
-                    return null; // Ignore connections from the top or sides
+
+                    // 2. AUTOMATION NETWORK LOCKDOWN:
+                    // When a Create pipe or pump checks your block, it passes the exact direction it is attached to.
+                    // We strictly return the tank ONLY if it is querying from the BOTTOM face.
+                    if (direction == net.minecraft.core.Direction.DOWN) {
+                        return blockEntity.getFluidTank();
+                    }
+
+                    // Any pipe trying to hook onto the sides or wooden lid gets NULL, forcing it to disconnect!
+                    return null;
                 }
         );
     }

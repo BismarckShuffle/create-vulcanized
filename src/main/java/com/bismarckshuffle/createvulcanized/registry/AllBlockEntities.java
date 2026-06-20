@@ -1,11 +1,9 @@
-package com.bismarckshuffle.createvulcanized;
+package com.bismarckshuffle.createvulcanized.registry;
 
-import com.bismarckshuffle.createvulcanized.block.TreeSpileBlock;
+import com.bismarckshuffle.createvulcanized.CreateVulcanized;
 import com.bismarckshuffle.createvulcanized.blockentity.TreeSpileBlockEntity;
 import com.tterrag.registrate.util.entry.BlockEntityEntry;
-import com.tterrag.registrate.util.entry.BlockEntry;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 
 public class AllBlockEntities extends Block {
     public AllBlockEntities(Properties properties) {

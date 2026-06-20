@@ -1,5 +1,6 @@
-package com.bismarckshuffle.createvulcanized;
+package com.bismarckshuffle.createvulcanized.registry;
 
+import com.bismarckshuffle.createvulcanized.CreateVulcanized;
 import com.bismarckshuffle.createvulcanized.block.TreeSpileBlock;
 import com.simibubi.create.foundation.data.SharedProperties;
 import com.tterrag.registrate.util.entry.BlockEntry;
@@ -27,6 +28,7 @@ public class AllBlocks {
                     .isSuffocating((state, level, pos) -> false)
                     .isViewBlocking((state, level, pos) -> false))
             .transform(axeOrPickaxe())
+            .loot((provider, block) -> provider.dropOther(block, net.minecraft.world.item.Items.AIR))
             .simpleItem()
             .register();
 
