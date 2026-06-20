@@ -7,6 +7,7 @@ import com.bismarckshuffle.createvulcanized.blockentity.TreeSpileBlockEntity;
 import com.mojang.serialization.MapCodec;
 import com.simibubi.create.content.equipment.wrench.IWrenchable;
 import com.simibubi.create.content.equipment.wrench.WrenchItem;
+
 import com.simibubi.create.foundation.block.IBE;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
@@ -44,12 +45,13 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.neoforged.neoforge.fluids.FluidStack;
 import net.neoforged.neoforge.fluids.FluidUtil;
 import net.neoforged.neoforge.fluids.capability.IFluidHandler;
+
 import net.neoforged.neoforge.items.ItemStackHandler;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
-public class TreeSpileBlock extends HorizontalDirectionalBlock implements EntityBlock, IBE<TreeSpileBlockEntity>, IWrenchable {
+public class TreeSpileBlock extends HorizontalDirectionalBlock implements EntityBlock, IBE<TreeSpileBlockEntity>, IWrenchable  {
 
     public static final MapCodec<TreeSpileBlock> CODEC = simpleCodec(TreeSpileBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
@@ -357,19 +359,4 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         tooltip.add(Component.translatable("tooltip.createvulcanized.tree_spile.warning")
                 .withStyle(ChatFormatting.GOLD));
     }
-    // Uses vanilla DataComponents.BLOCK_ENTITY_DATA
-    // This creates a standard item tooltip readout and saves the data automatically
-//    private ItemStack saveBlockEntityDataToItem(LevelReader level, BlockPos pos, ItemStack stack) {
-//        net.minecraft.world.level.block.entity.BlockEntity be = level.getBlockEntity(pos);
-//        if (be instanceof TreeSpileBlockEntity spileBe) {
-//            net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
-//
-//            // Invoke the block entity's native NBT serialization loop to pack up BOTH the fluid tank and the inventory handler instantly
-//            spileBe.saveAdditional(tag, level.registryAccess());
-//
-//            // Set it as a standard vanilla block entity component modifier
-//            stack.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(tag));
-//        }
-//        return stack;
-//    }
 }
