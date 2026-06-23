@@ -51,26 +51,26 @@ public class CreateVulcanized {
     }
 
     private void registerCapabilities(RegisterCapabilitiesEvent event) {
-        // Bind a fluid capability handler specifically to Tree Spile Block Entity type
+        // Expose the spile tank as a block fluid handler.
         event.registerBlockEntity(
                 net.neoforged.neoforge.capabilities.Capabilities.FluidHandler.BLOCK,
                 AllBlockEntities.TREE_SPILE.get(),
                 (blockEntity, direction) -> {
                     // 1. PLAYER COMPATIBILITY NULL-CHECK:
                     // When a player right-clicks with a bucket, the direction passed into this capability is NULL.
-                    // Returning the tank here keeps player bucket interactions fully working from ALL 6 sides!
+                    // Returning the tank here keeps player bucket interactions fully working from ALL 6 sides
                     if (direction == null) {
                         return blockEntity.getFluidTank();
                     }
 
                     // 2. AUTOMATION NETWORK LOCKDOWN:
-                    // When a Create pipe or pump checks your block, it passes the exact direction it is attached to.
+                    // When a Create pipe or pump checks the block, it passes the exact direction it is attached to.
                     // We strictly return the tank ONLY if it is querying from the BOTTOM face.
                     if (direction == net.minecraft.core.Direction.DOWN) {
                         return blockEntity.getFluidTank();
                     }
 
-                    // Any pipe trying to hook onto the sides or wooden lid gets NULL, forcing it to disconnect!
+                    // Any pipe trying to hook onto the sides or wooden lid gets NULL, forcing it to disconnect
                     return null;
                 }
         );

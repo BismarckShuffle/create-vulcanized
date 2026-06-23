@@ -14,7 +14,7 @@ public class AllFluids {
                     ResourceLocation.fromNamespaceAndPath(CreateVulcanized.ID, "block/resin_flow")
             )
                     .lang("Resin")
-            // Sets physical attributes using SimpleFluidType configurations
+            // Thicker and slower-moving than water.
             .properties(b -> b.viscosity(2000)
                     .density(1400).descriptionId("fluid_type.createvulcanized.resin"))
             .fluidProperties(p -> p.levelDecreasePerBlock(3)
@@ -27,6 +27,6 @@ public class AllFluids {
             .register();
 
     public static void register() {
-        // Forces class loading to trigger Registrate calls on initialization
+        // Triggers static registration.
     }
 }

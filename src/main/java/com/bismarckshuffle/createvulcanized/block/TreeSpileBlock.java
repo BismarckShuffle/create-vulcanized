@@ -57,16 +57,15 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty ATTACHED_TO_TREE = BooleanProperty.create("attached_to_tree");
 
-    // TALL WORKING HITBOX: Expanded full-width bounds for when the spile is active (16x16 wide, 24 high)
+    // Taller outline used while the spile is attached to a tree.
     private static final VoxelShape TALL_ATTACHED_SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 24, 16.0D);
 
-    // SHORT IDLE HITBOX: Standard single-block boundaries for when the spile is unattached/placed anywhere else
+    // Normal one-block outline used when the spile is idle.
     private static final VoxelShape SHORT_IDLE_SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 16.0D, 16.0D);
 
 
     public TreeSpileBlock(Properties properties) {
         super(properties);
-        // Register the default state using the FACING property inherited from the parent class
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(FACING, Direction.NORTH)
                 .setValue(ATTACHED_TO_TREE, false));
@@ -79,7 +78,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        // This tells Minecraft the block actually accepts the horizontal facing property
         builder.add(FACING, ATTACHED_TO_TREE);
     }
 
@@ -87,12 +85,8 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
         super.onPlace(state, level, pos, oldState, isMoving);
 
-        // Ensure we only run structural checks on the logical server thread to prevent network desyncs
         if (!level.isClientSide()) {
-            this.withBlockEntityDo(level, pos, spileBe -> {
-                // Forcefully invoke the tree check loop immediately upon world instantiation!
-                spileBe.forceTreeRecheck(level, pos, state);
-            });
+            this.withBlockEntityDo(level, pos, spileBe -> spileBe.forceTreeRecheck(level, pos, state));
         }
     }
 
@@ -106,7 +100,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
             placementFacing = clickedFace;
         }
 
-        // Checks if placed against a tag-valid log directly upon world initialization
         boolean isTree = context.getLevel().getBlockState(context.getClickedPos().relative(placementFacing.getOpposite())).is(net.minecraft.tags.BlockTags.LOGS);
 
         return this.defaultBlockState()
@@ -124,11 +117,11 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         return AllBlockEntities.TREE_SPILE.get();
     }
 
-    // Assign the server-side logic loop to Block Entity
+    // Server-side block entity ticker.
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (level.isClientSide) return null; // Only calculate resin on the server
+        if (level.isClientSide) return null; // Resin production is server-only.
         return (lvl, pos, st, be) -> {
             if (be instanceof TreeSpileBlockEntity spileBe) {
                 spileBe.tick(lvl, st, spileBe);
@@ -142,13 +135,13 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         BlockPos pos = context.getClickedPos();
         Player player = context.getPlayer();
 
-        // 1. CROUCH + WRENCH DISMANTLE HANDLER (WITH INVENTORY RETENTION)
+        // Shift-wrench picks the block up with its stored data.
         if (player != null && player.isShiftKeyDown()) {
             if (!level.isClientSide()) {
                 ItemStack dropStack = new ItemStack(this.asItem());
 
                 this.withBlockEntityDo(level, pos, spileBe -> {
-                    // Drop bucket items safely onto the floor
+                    // Drop the bucket slot contents separately.
                     ItemStackHandler inv = spileBe.getInventoryHandler();
                     for (int i = 0; i < inv.getSlots(); i++) {
                         ItemStack slotStack = inv.getStackInSlot(i);
@@ -156,19 +149,16 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                             net.minecraft.world.Containers.dropItemStack(level, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, slotStack);
                         }
                     }
-                    // It excludes coordinates and ID automatically, ensuring items stack perfectly!
+
                     net.minecraft.nbt.CompoundTag blockEntityData = spileBe.saveWithoutMetadata(level.registryAccess());
 
-                    // Bake the data directly into the item's 1.21 Data Component layer
                     if (!blockEntityData.isEmpty()) {
                         dropStack.set(net.minecraft.core.component.DataComponents.BLOCK_ENTITY_DATA, net.minecraft.world.item.component.CustomData.of(blockEntityData));
                     }
                 });
 
-                // Clear the block safely without spawning duplicate normal loot tables
                 level.destroyBlock(pos, false, player);
 
-                // Give the data-retaining spile item directly to the player
                 if (!player.getInventory().add(dropStack)) {
                     player.drop(dropStack, false);
                 }
@@ -176,7 +166,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
             return InteractionResult.sidedSuccess(level.isClientSide());
         }
 
-        // 2. ANY-SIDE HORIZONTAL ROTATION OVERRIDE
+        // Normal wrench use rotates the spile.
         if (!level.isClientSide()) {
             Direction currentFacing = state.getValue(FACING);
             Direction nextFacing = currentFacing.getClockWise();
@@ -184,7 +174,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
             level.setBlock(pos, newState, 3);
             IWrenchable.playRotateSound(level, pos);
 
-            // Ensure this maps to the structural validation reset trigger
             this.withBlockEntityDo(level, pos, spileBe -> spileBe.forceTreeRecheck(level, pos, newState));
         }
 
@@ -199,7 +188,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     @Override
     protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         if (state.getValue(ATTACHED_TO_TREE)) {
-            // Returns a full 2-block-tall solid physical wall to the building engine
             return Block.box(0.0D, 4.0D, 0.0D, 16.0D, 32.0D, 16.0D);
         }
         return SHORT_IDLE_SHAPE;
@@ -214,8 +202,8 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     protected boolean propagatesSkylightDown(BlockState state, BlockGetter level, BlockPos pos) {
         return true;
     }
-    // Tells the placement system that if something tries to click the top area of the block space,
-    // it cannot overwrite or clip through this block's extended boundaries.
+
+    // Prevent placing through the extended model bounds.
     @Override
     protected boolean canBeReplaced(BlockState state, BlockPlaceContext context) {
         return false;
@@ -223,7 +211,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
 
     @Override
     protected ItemInteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hitResult) {
-        // 1. DUAL-THREAD SAFETY FLAG: Confine the logic checks strictly to the server thread pass
         if (level.isClientSide()) {
             return ItemInteractionResult.SUCCESS;
         }
@@ -236,7 +223,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
         if (be instanceof TreeSpileBlockEntity spileBe) {
             net.neoforged.neoforge.fluids.capability.IFluidHandler tankHandler = spileBe.getFluidTank();
 
-            // 2. EXPLICIT BUCKET EMPTYING ACTION (With Updated 2000mB and 800mB Tolerance Threshold)
+            // Resin bucket -> tank.
             if (stack.is(AllFluids.RESIN.get().getBucket())) {
                 int currentFluid = tankHandler.getFluidInTank(0).getAmount();
                 int emptySpace = TreeSpileBlockEntity.MAX_CAPACITY - currentFluid;
@@ -247,10 +234,8 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                     FluidStack topOff = new FluidStack(AllFluids.RESIN.get(), actualFillAmount);
                     tankHandler.fill(topOff, IFluidHandler.FluidAction.EXECUTE);
 
-                    // Play the liquid emptying / pouring audio cue
                     level.playSound(null, pos, net.minecraft.sounds.SoundEvents.BUCKET_EMPTY, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
 
-                    // Update the player inventory held items cleanly
                     if (!player.getAbilities().instabuild) {
                         stack.shrink(1);
                         ItemStack emptyBucket = new ItemStack(Items.BUCKET);
@@ -261,17 +246,15 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
 
                     level.blockEntityChanged(pos);
                 } else {
-                    // Alert the action bar if the transaction violates the tolerance barrier
                     player.displayClientMessage(net.minecraft.network.chat.Component.literal("Receptacle is too full to accept a bucket"), true);
                 }
                 return ItemInteractionResult.SUCCESS;
             }
 
-            // 3. EXPLICIT BUCKET EXTRACTION ACTION
+            // Empty bucket -> resin bucket.
             if (stack.is(Items.BUCKET)) {
                 boolean transactionSuccess = FluidUtil.interactWithFluidHandler(player, hand, tankHandler);
                 if (transactionSuccess) {
-                    // Play the fluid filling / scooping audio cue
                     level.playSound(null, pos, net.minecraft.sounds.SoundEvents.BUCKET_FILL, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
 
                     level.blockEntityChanged(pos);
@@ -279,7 +262,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                 }
             }
 
-            // 4. GUI SECTOR FALLBACK: Open the container window if holding a non-fluid item
+            // Non-fluid interaction opens the GUI.
             player.openMenu(spileBe, (net.minecraft.network.RegistryFriendlyByteBuf buffer) -> buffer.writeBlockPos(pos));
             spileBe.startOpen(player);
             return ItemInteractionResult.SUCCESS;
@@ -295,7 +278,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                 net.minecraft.world.level.block.entity.BlockEntity entity = level.getBlockEntity(pos);
                 if (entity instanceof TreeSpileBlockEntity spileBe) {
 
-                    // A. Drop the contents of your bucket item slots onto the floor grid
+                    // Drop inventory contents before the block entity is removed.
                     ItemStackHandler inv = spileBe.getInventoryHandler();
                     for (int i = 0; i < inv.getSlots(); i++) {
                         ItemStack slotStack = inv.getStackInSlot(i);
@@ -304,8 +287,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                         }
                     }
 
-                    // B. IF MINED: Drop the block item itself with full fluid cargo attached!
-                    // (We handle this here because onRemove fires immediately when a player breaks the block)
+                    // Preserve fluid contents on the block item drop.
                     ItemStack spileDrop = new ItemStack(this.asItem());
                     net.minecraft.nbt.CompoundTag tag = new net.minecraft.nbt.CompoundTag();
                     tag.put("FluidTank", spileBe.getFluidTank().writeToNBT(level.registryAccess(), new net.minecraft.nbt.CompoundTag()));
@@ -314,7 +296,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
                         spileDrop.set(DataComponents.BLOCK_ENTITY_DATA, CustomData.of(tag));
                     }
 
-                    // Drop the item into the world safely
                     net.minecraft.world.Containers.dropItemStack(level, pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5, spileDrop);
 
                     level.updateNeighbourForOutputSignal(pos, this);
@@ -328,8 +309,7 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader level, BlockPos pos, Player player) {
         ItemStack stack = super.getCloneItemStack(state, target, level, pos, player);
 
-        // Safety: Only fetch the block entity if we are running on the server thread
-        // to prevent client-side NullPointerExceptions and network disconnects
+        // Only the server has reliable block entity data here.
         if (level instanceof Level world && !world.isClientSide()) {
             net.minecraft.world.level.block.entity.BlockEntity be = world.getBlockEntity(pos);
             if (be instanceof TreeSpileBlockEntity spileBe) {
@@ -344,18 +324,16 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     @Override
     public void spawnAfterBreak(BlockState state, ServerLevel level, BlockPos pos, ItemStack tool, boolean dropExperience) {
         super.spawnAfterBreak(state, level, pos, tool, dropExperience);
-        // This is skipped because we manually generate the drop item below right before the block vanishes!
+        // Drop handling is done in onRemove so the fluid data can be copied first.
     }
 
     @Override
     public void appendHoverText(ItemStack stack, Item.TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
         super.appendHoverText(stack, context, tooltip, flag);
 
-        // Core utility functional layout description
         tooltip.add(Component.translatable("tooltip.createvulcanized.tree_spile.desc")
                 .withStyle(ChatFormatting.GRAY));
 
-        // The specific structural guidance alert for crooked or curved wood types
         tooltip.add(Component.translatable("tooltip.createvulcanized.tree_spile.warning")
                 .withStyle(ChatFormatting.GOLD));
     }
