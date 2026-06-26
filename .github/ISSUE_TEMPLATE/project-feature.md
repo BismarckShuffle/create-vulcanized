@@ -3,16 +3,7 @@ name: Project Feature
 about: Template used for describing project features
 title: "[FEATURE]"
 labels: ''
-assignees: ''
-
----
-
----
-name: "Mod Development Task"
-about: Template for tracking bug fixes, new features, and gameplay tweaks.
-title: "[Type] Brief description of the task"
-labels: enhancement, todo
-assignees: ''
+assignees: BismarckShuffle
 
 ---
 

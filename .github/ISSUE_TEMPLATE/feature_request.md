@@ -3,16 +3,7 @@ name: Feature request
 about: Suggest an idea for this project
 title: "[REQUEST]"
 labels: ''
-assignees: ''
-
----
-
----
-name: Feature Request
-about: Suggest an idea, item, block, or mechanic for the mod.
-title: "[FEATURE] Brief description of the suggestion"
-labels: enhancement
-assignees: ''
+assignees: BismarckShuffle
 
 ---
 

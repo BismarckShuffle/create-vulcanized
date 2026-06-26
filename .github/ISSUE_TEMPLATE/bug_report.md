@@ -3,16 +3,7 @@ name: Bug report
 about: Create a report to help me improve
 title: "[BUG]"
 labels: ''
-assignees: ''
-
----
-
----
-name: Bug Report
-about: Report a bug, crash, or unexpected behavior in the mod.
-title: "[BUG] Brief description of the issue"
-labels: bug
-assignees: ''
+assignees: BismarckShuffle
 
 ---
 
