@@ -1,4 +1,4 @@
-# Create Mod Addon Template
+# Create: Vulcanized
 
 A ready-to-use template for building [Create](https://modrinth.com/mod/create) mod addons with **Java** and **NeoForge 1.21.1**.
 
