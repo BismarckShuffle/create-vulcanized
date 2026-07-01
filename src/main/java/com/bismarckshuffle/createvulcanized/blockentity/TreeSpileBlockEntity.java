@@ -64,7 +64,7 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-        // Reserved for future Create behaviours.
+        // Reserved for future Create behaviors.
     }
 
 
@@ -103,6 +103,20 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
             this.extractionTimer = 0;
             FluidStack resinDroplet = new FluidStack(AllFluids.RESIN.get(), RESIN_PER_CYCLE);
             this.getFluidTank().fill(resinDroplet, IFluidHandler.FluidAction.EXECUTE);
+
+            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+                double x = worldPosition.getX() + 0.5;
+                double y = worldPosition.getY() + 1.05;
+                double z = worldPosition.getZ() + 0.62;
+
+                net.minecraft.core.particles.DustParticleOptions dust =
+                        new net.minecraft.core.particles.DustParticleOptions(
+                                new org.joml.Vector3f(1.0F, 0.7F, 0.3F),  // Amber color
+                                1.0F  // Size
+                        );
+
+                serverLevel.sendParticles(dust, x, y, z, 1, 0, -0.02, 0, 0.1);
+            }
         }
     }
 
@@ -264,7 +278,7 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
         @Override
         protected void openerCountChanged(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state, int count, int openCount) {
-            // No blockstate update needed for opener count changes.
+            // No block state update needed for opener count changes.
         }
 
         @Override
