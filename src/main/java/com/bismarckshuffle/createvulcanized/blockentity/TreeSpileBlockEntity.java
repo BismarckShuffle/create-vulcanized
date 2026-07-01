@@ -86,23 +86,33 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
     }
 
     // Server-side production tick.
-    public void tick(Level level, BlockState state, TreeSpileBlockEntity be) {
-        if (level.isClientSide()) return;
+    @Override
+    public void tick() {
+        super.tick();
 
+        if (level == null || level.isClientSide()) return;
+
+        BlockState state = getBlockState();
         if (!state.getValue(TreeSpileBlock.ATTACHED_TO_TREE)) {
-            be.extractionTimer = 0;
+            this.extractionTimer = 0;
             return;
         }
 
-        be.extractionTimer++;
-        if (be.extractionTimer >= TICK_DELAY) {
-            be.extractionTimer = 0;
-
-            net.neoforged.neoforge.fluids.FluidStack resinDroplet =
-                    new net.neoforged.neoforge.fluids.FluidStack(AllFluids.RESIN.get(), RESIN_PER_CYCLE);
-
-            be.getFluidTank().fill(resinDroplet, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+        this.extractionTimer++;
+        if (this.extractionTimer >= TICK_DELAY) {
+            this.extractionTimer = 0;
+            FluidStack resinDroplet = new FluidStack(AllFluids.RESIN.get(), RESIN_PER_CYCLE);
+            this.getFluidTank().fill(resinDroplet, IFluidHandler.FluidAction.EXECUTE);
         }
+    }
+
+    // Deferred tree structure checks to avoid expensive world queries every tick
+    @Override
+    public void lazyTick() {
+        if (level == null || level.isClientSide()) return;
+
+        BlockState state = getBlockState();
+        forceTreeRecheck(level, worldPosition, state);
     }
 
     private boolean checkTreeStructure(Level level, BlockPos pos, BlockState state) {

@@ -63,6 +63,17 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     // Normal one-block outline used when the spile is idle.
     private static final VoxelShape SHORT_IDLE_SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 16.0D, 16.0D);
 
+    // Server-side block entity ticker.
+    // Cache the ticker instance once instead of creating it per getTicker call
+    private static final BlockEntityTicker<TreeSpileBlockEntity> TICKER =
+            (lvl, pos, st, be) -> be.tick();
+
+    @Nullable
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+        return level.isClientSide ? null : (BlockEntityTicker<T>) TICKER;
+    }
 
     public TreeSpileBlock(Properties properties) {
         super(properties);
@@ -115,18 +126,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     @Override
     public BlockEntityType<? extends TreeSpileBlockEntity> getBlockEntityType() {
         return AllBlockEntities.TREE_SPILE.get();
-    }
-
-    // Server-side block entity ticker.
-    @Nullable
-    @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        if (level.isClientSide) return null; // Resin production is server-only.
-        return (lvl, pos, st, be) -> {
-            if (be instanceof TreeSpileBlockEntity spileBe) {
-                spileBe.tick(lvl, st, spileBe);
-            }
-        };
     }
 
     @Override
