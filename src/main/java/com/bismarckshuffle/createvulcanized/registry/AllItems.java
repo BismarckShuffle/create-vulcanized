@@ -15,16 +15,19 @@ public class AllItems {
     public static final ItemEntry<RubberSheetItem> RAW_RUBBER_SHEET =
             REGISTRATE.item("raw_rubber_sheet", RubberSheetItem::new)
                     .properties(p -> p.stacksTo(64))
-                    .lang("Raw Rubber Sheet")
                     .register();
 
     @SuppressWarnings("unused")
     public static final ItemEntry<Item> VULCANIZED_RUBBER_STRIPS =
             REGISTRATE.item("vulcanized_rubber_strips", Item::new)
-                    .properties(p -> p.stacksTo(64))
-                    .lang("Vulcanized Rubber Strips")
+                    .properties(p -> p.stacksTo(32))
                     .register();
 
+    @SuppressWarnings("unused")
+    public static final ItemEntry<Item> ANDESITE_FASTENER =
+            REGISTRATE.item("andesite_fastener", Item::new)
+                    .properties(p -> p.stacksTo(32))
+                    .register();
 
     public static void register() {
         // Force class loading to trigger Registrate calls
