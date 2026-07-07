@@ -12,6 +12,7 @@
 
   "item.createvulcanized.andesite_fastener": "Andesite Fastener",
 
+  "item.createvulcanized.smithing_hammer": "Smithing Hammer",
 
   "tooltip.createvulcanized.tree_spile.empty": "  Empty (0 / %s mB)",
   "tooltip.createvulcanized.tree_spile.desc": "Extracts raw tree syrup when tapped securely into a live log trunk.",

@@ -1,6 +1,6 @@
 {
   "parent": "item/generated",
   "textures": {
-    "layer0": "createvulcanized:item/resin_bucket"
+    "layer0": "createvulcanized:item/resin_bucket_texture"
   }
 }

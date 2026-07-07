@@ -29,6 +29,11 @@ public class AllItems {
                     .properties(p -> p.stacksTo(32))
                     .register();
 
+    public static final ItemEntry<Item> SMITHING_HAMMER =
+            REGISTRATE.item("smithing_hammer", Item::new)
+                    .properties(p -> p.stacksTo(1))
+                    .register();
+
     public static void register() {
         // Force class loading to trigger Registrate calls
     }
