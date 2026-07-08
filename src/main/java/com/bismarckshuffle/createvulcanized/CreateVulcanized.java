@@ -32,6 +32,7 @@ public class CreateVulcanized {
 
         AllCreativeModeTabs.register();
         REGISTRATE.setCreativeTab(AllCreativeModeTabs.MAIN_TAB);
+        AllDataComponents.register(modBus);
         AllItems.register();
         AllBlocks.register();
         AllBlockEntities.register();
