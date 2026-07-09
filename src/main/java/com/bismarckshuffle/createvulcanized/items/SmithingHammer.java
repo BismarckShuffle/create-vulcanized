@@ -76,57 +76,41 @@ public class SmithingHammer extends Item {
         }
     }
 
-    // Only want to process one item from a stack, return the in-progress item if not finished, or the output item if finished
-    public ItemStack hammerOne(ItemStack stack, Player player, Level level) {
+    private HammerResult processOne(ItemStack stack) {
 
-        // Shared cooldown
-        if (player.getCooldowns().isOnCooldown(this))
-            return stack;
-
-        // Split off ONE item
+        // Split off ONE item to process
         ItemStack single = stack.split(1);
 
-        // Shared progress logic
-        ItemStack result = addProgress(single, player, level);
+        ProgressionComponent prog = single.get(AllDataComponents.PROGRESSION);
+        if (prog == null)
+            prog = new ProgressionComponent(0, 5);
 
-        applyCooldown(player);
+        int newProgress = prog.progress() + 1;
 
-        // If recipe completed, result is the output item
-        // If not completed, result is null and 'single' now has updated progress
-        return (result != null) ? result : single;
-    }
+        // COMPLETED
+        if (newProgress >= prog.maxProgress()) {
 
-    private ItemStack addProgress(ItemStack stack, Player player, Level level) {
+            // Consume the processed item
+            single.shrink(1);
 
-        ProgressionComponent old = stack.get(AllDataComponents.PROGRESSION);
-        if (old == null)
-            old = new ProgressionComponent(0, 5);
+            // Create output
+            ItemStack output = new ItemStack(AllItems.ANDESITE_FASTENER.get());
+            output.remove(AllDataComponents.PROGRESSION.get());
 
-        int newProgress = old.progress() + 1;
+            // Reset progress on remaining stack
+            if (!stack.isEmpty()) {
+                stack.set(AllDataComponents.PROGRESSION,
+                        new ProgressionComponent(0, prog.maxProgress()));
+            }
 
-        if (newProgress >= old.maxProgress())
-        {
-//            playEffects(level, player, true, null);
-            return finishRecipe(stack);
-        }
-        else
-        {
-//            playEffects(level, player, false, null);
+            return new HammerResult(stack, output, true, 0, prog.maxProgress());
         }
 
+        // IN PROGRESS — update progress on remaining stack
         stack.set(AllDataComponents.PROGRESSION,
-                new ProgressionComponent(newProgress, old.maxProgress()));
+                new ProgressionComponent(newProgress, prog.maxProgress()));
 
-        return null;
-    }
-
-    private ItemStack finishRecipe(ItemStack stack) {
-        stack.shrink(1);
-
-        ItemStack output = new ItemStack(AllItems.ANDESITE_FASTENER.get());
-        output.remove(AllDataComponents.PROGRESSION.get());
-
-        return output;
+        return new HammerResult(stack, null, false, newProgress, prog.maxProgress());
     }
 
     // DEPOT hammering (called by depot behavior intercept mixin in DepotBlockMixin.java)
@@ -136,66 +120,44 @@ public class SmithingHammer extends Item {
         if (stack.isEmpty())
             return InteractionResult.PASS;
 
-        // Cooldown
         if (player.getCooldowns().isOnCooldown(this))
             return InteractionResult.PASS;
 
-        // Read or initialize progress
-        ProgressionComponent prog = stack.get(AllDataComponents.PROGRESSION);
-        if (prog == null)
-            prog = new ProgressionComponent(0, 5);
-
-        int newProgress = prog.progress() + 1;
+        HammerResult result = processOne(stack);
 
         // Effects
-        player.swing(player.getUsedItemHand(), true);
-        playEffects(level, player, newProgress >= prog.maxProgress(), depot);
-
-        // Apply cooldown AFTER successful hit
+        playEffects(level, player, result.finished, depot);
         applyCooldown(player);
+        player.causeFoodExhaustion(0.2F);
 
-        // COMPLETION
-        if (newProgress >= prog.maxProgress()) {
+        // COMPLETED
+        if (result.finished) {
 
-            // Consume ONE sheet
-            stack.shrink(1);
+            depot.setHeldItem(result.remaining.isEmpty() ? ItemStack.EMPTY : result.remaining);
 
-            // Reset progress on remaining stack
-            if (!stack.isEmpty()) {
-                stack.set(AllDataComponents.PROGRESSION,
-                        new ProgressionComponent(0, prog.maxProgress()));
-                depot.setHeldItem(stack);
-            } else {
-                depot.setHeldItem(ItemStack.EMPTY);
-            }
-
-            // Create output item
-            ItemStack output = new ItemStack(AllItems.ANDESITE_FASTENER.get());
-
-            // Drop the output item into the world
             level.addFreshEntity(new ItemEntity(
                     level,
                     depot.getBlockPos().getX() + 0.5,
                     depot.getBlockPos().getY() + 0.75,
                     depot.getBlockPos().getZ() + 0.5,
-                    output
+                    result.output
             ));
 
-            player.causeFoodExhaustion(0.2F);
             return InteractionResult.SUCCESS;
         }
 
-        // NOT COMPLETE YET — update progress
-        stack.set(AllDataComponents.PROGRESSION,
-                new ProgressionComponent(newProgress, prog.maxProgress()));
-
-        depot.setHeldItem(stack);
+        // NOT COMPLETED
+        depot.setHeldItem(result.remaining);
         return InteractionResult.SUCCESS;
     }
 
 
+
     // BELT hammering (called by useOn)
     private InteractionResult hammerBelt(Level level, BeltBlockEntity belt, Player player) {
+
+        if (player.getCooldowns().isOnCooldown(this))
+            return InteractionResult.PASS;
 
         var inventory = belt.getInventory();
 
@@ -205,21 +167,25 @@ public class SmithingHammer extends Item {
             if (stack.isEmpty())
                 continue;
 
-            // Hammer ONE item
-            ItemStack processed = hammerOne(stack, player, level);
-            if (processed.isEmpty())
-                continue;
+            HammerResult result = processOne(stack);
 
-            // Replace the transported item
-            transported.stack = processed;
-
-            // Belt will update visuals
+            transported.stack = result.remaining;
             belt.notifyUpdate();
 
-            break; // Only hammer ONE transported item
+            playEffects(level, player, result.finished, null);
+            applyCooldown(player);
+            player.causeFoodExhaustion(0.2F);
+
+            if (result.finished) {
+                transported.stack = result.output;
+            }
+
+            break;
         }
+
         return InteractionResult.SUCCESS;
     }
+
 
     @Override
     public InteractionResult useOn(UseOnContext ctx) {
@@ -237,10 +203,21 @@ public class SmithingHammer extends Item {
             if (belt == null)
                 return InteractionResult.PASS;
 
-            return hammerBelt(level, belt, player);
+            if (player != null) {
+                return hammerBelt(level, belt, player);
+            }
         }
 
         return InteractionResult.PASS;
+    }
+
+    /**
+     * @param remaining stack after removing 1 item
+     * @param output    finished item (null if not finished)
+     * @param finished  true if recipe completed
+     */
+    private record HammerResult(ItemStack remaining, ItemStack output, boolean finished, int newProgress,
+                                int maxProgress) {
     }
 
 
