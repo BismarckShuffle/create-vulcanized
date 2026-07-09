@@ -2,14 +2,16 @@ package com.bismarckshuffle.createvulcanized.items;
 
 import com.bismarckshuffle.createvulcanized.registry.AllDataComponents;
 import com.bismarckshuffle.createvulcanized.registry.AllItems;
+import com.simibubi.create.AllSoundEvents;
 import com.simibubi.create.content.kinetics.belt.BeltBlock;
 import com.simibubi.create.content.kinetics.belt.BeltBlockEntity;
-import com.simibubi.create.content.logistics.depot.DepotBlock;
+import com.simibubi.create.content.kinetics.belt.transport.TransportedItemStack;
 import com.simibubi.create.content.logistics.depot.DepotBlockEntity;
 import net.minecraft.core.BlockPos;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
+
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
@@ -27,38 +29,183 @@ public class SmithingHammer extends Item {
         super(props);
     }
 
+    private void applyCooldown(Player player) {
+        if (player.getCooldowns().isOnCooldown(this))
+            return;
+
+        player.getCooldowns().addCooldown(this, 20); // 20 ticks
+    }
+
+    private void playEffects(Level level, Player player, boolean recipeFinisher) {
+        player.swing(player.getUsedItemHand(), true);
+
+        if (recipeFinisher)
+            level.playSound(null, player.blockPosition(),
+                    AllSoundEvents.MECHANICAL_PRESS_ACTIVATION.getMainEvent(), SoundSource.BLOCKS,
+                    .85f, 1.5f);
+        else
+            level.playSound(null, player.blockPosition(),
+                    AllSoundEvents.MECHANICAL_PRESS_ACTIVATION.getMainEvent(), SoundSource.BLOCKS,
+                    .85f, 1.0f);
+    }
+
+    // Only want to process one item from a stack, return the in-progress item if not finished, or the output item if finished
+    public ItemStack hammerOne(ItemStack stack, Player player, Level level) {
+
+        // Shared cooldown
+        if (player.getCooldowns().isOnCooldown(this))
+            return stack;
+
+        // Split off ONE item
+        ItemStack single = stack.split(1);
+
+        // Shared progress logic
+        ItemStack result = addProgress(single, player, level);
+
+        applyCooldown(player);
+
+        // If recipe completed, result is the output item
+        // If not completed, result is null and 'single' now has updated progress
+        return (result != null) ? result : single;
+    }
+
+    private ItemStack addProgress(ItemStack stack, Player player, Level level) {
+
+        ProgressionComponent old = stack.get(AllDataComponents.PROGRESSION);
+        if (old == null)
+            old = new ProgressionComponent(0, 5);
+
+        int newProgress = old.progress() + 1;
+
+        if (newProgress >= old.maxProgress())
+        {
+            playEffects(level, player, true);
+            return finishRecipe(stack);
+        }
+        else
+        {
+            playEffects(level, player, false);
+        }
+
+        stack.set(AllDataComponents.PROGRESSION,
+                new ProgressionComponent(newProgress, old.maxProgress()));
+
+        return null;
+    }
+
+    private ItemStack finishRecipe(ItemStack stack) {
+        stack.shrink(1);
+
+        ItemStack output = new ItemStack(AllItems.ANDESITE_FASTENER.get());
+        output.remove(AllDataComponents.PROGRESSION.get());
+
+        return output;
+    }
+
+    // DEPOT hammering (called by depot behavior intercept mixin in DepotBlockMixin.java)
+    public InteractionResult hammerDepot(Level level, DepotBlockEntity depot, Player player) {
+
+        ItemStack stack = depot.getHeldItem();
+        if (stack.isEmpty())
+            return InteractionResult.PASS;
+
+        // Cooldown
+        if (player.getCooldowns().isOnCooldown(this))
+            return InteractionResult.PASS;
+
+        // Read or initialize progress
+        ProgressionComponent prog = stack.get(AllDataComponents.PROGRESSION);
+        if (prog == null)
+            prog = new ProgressionComponent(0, 5);
+
+        int newProgress = prog.progress() + 1;
+
+        // Effects
+        player.swing(player.getUsedItemHand(), true);
+        level.playSound(null, player.blockPosition(),
+                AllSoundEvents.MECHANICAL_PRESS_ACTIVATION.getMainEvent(), SoundSource.BLOCKS,
+                1.0f, 1.0f);
+
+        // Apply cooldown AFTER successful hit
+        applyCooldown(player);
+
+        // COMPLETION
+        if (newProgress >= prog.maxProgress()) {
+
+            // Consume ONE sheet
+            stack.shrink(1);
+
+            // Reset progress on remaining stack
+            if (!stack.isEmpty()) {
+                stack.set(AllDataComponents.PROGRESSION,
+                        new ProgressionComponent(0, prog.maxProgress()));
+                depot.setHeldItem(stack);
+            } else {
+                depot.setHeldItem(ItemStack.EMPTY);
+            }
+
+            // Create output item
+            ItemStack output = new ItemStack(AllItems.ANDESITE_FASTENER.get());
+
+            // Drop the output item into the world
+            level.addFreshEntity(new ItemEntity(
+                    level,
+                    depot.getBlockPos().getX() + 0.5,
+                    depot.getBlockPos().getY() + 0.75,
+                    depot.getBlockPos().getZ() + 0.5,
+                    output
+            ));
+
+            return InteractionResult.SUCCESS;
+        }
+
+        // NOT COMPLETE YET — update progress
+        stack.set(AllDataComponents.PROGRESSION,
+                new ProgressionComponent(newProgress, prog.maxProgress()));
+
+        depot.setHeldItem(stack);
+        return InteractionResult.SUCCESS;
+    }
+
+
+    // BELT hammering (called by useOn)
+    private InteractionResult hammerBelt(Level level, BeltBlockEntity belt, Player player) {
+
+        var inventory = belt.getInventory();
+
+        for (TransportedItemStack transported : inventory.getTransportedItems()) {
+
+            ItemStack stack = transported.stack;
+            if (stack.isEmpty())
+                continue;
+
+            // Hammer ONE item
+            ItemStack processed = hammerOne(stack, player, level);
+            if (processed.isEmpty())
+                continue;
+
+            // Replace the transported item
+            transported.stack = processed;
+
+            // Belt will update visuals
+            belt.notifyUpdate();
+
+            break; // Only hammer ONE transported item
+        }
+        return InteractionResult.SUCCESS;
+    }
+
     @Override
     public InteractionResult useOn(UseOnContext ctx) {
         Level level = ctx.getLevel();
         BlockPos pos = ctx.getClickedPos();
         Player player = ctx.getPlayer();
-        ItemStack hammer = ctx.getItemInHand();
-
         BlockState state = level.getBlockState(pos);
 
         if (level.isClientSide)
             return InteractionResult.SUCCESS;
 
-        // Depot
-        if (state.getBlock() instanceof DepotBlock) {
-            DepotBlockEntity depot = (DepotBlockEntity) level.getBlockEntity(pos);
-            if (depot == null)
-                return InteractionResult.PASS;
-
-            ItemStack stack = depot.getHeldItem();
-            if (stack.isEmpty())
-                return InteractionResult.PASS;
-
-            ItemStack result = addProgress(stack, player, level);
-
-            if (result != null)
-                depot.setHeldItem(result);
-
-            // IMPORTANT: prevent depot from running its own right-click logic
-            return InteractionResult.CONSUME;
-        }
-
-        // Belt
+        // BELT ONLY
         if (state.getBlock() instanceof BeltBlock) {
             BeltBlockEntity belt = (BeltBlockEntity) level.getBlockEntity(pos);
             if (belt == null)
@@ -70,100 +217,5 @@ public class SmithingHammer extends Item {
         return InteractionResult.PASS;
     }
 
-    // DEPOT HANDLING
-    private InteractionResult hammerDepot(Level level, DepotBlockEntity depot, Player player) {
-        ItemStack stack = depot.getHeldItem();
 
-        if (stack.isEmpty())
-            return InteractionResult.PASS;
-
-        ItemStack result = addProgress(stack, player, level);
-
-        if (result != null) {
-            depot.setHeldItem(result);
-        }
-
-        return InteractionResult.SUCCESS;
-    }
-
-    // BELT HANDLING
-    private InteractionResult hammerBelt(Level level, BeltBlockEntity belt, Player player) {
-//        var inventory = belt.getInventory();
-//
-//        for (var transported : inventory.getTransportedItems()) {
-//            ItemStack stack = transported.stackBefore;
-//            if (stack.isEmpty())
-//                continue;
-//
-//            ItemStack result = addProgress(stack, player, level);
-//            if (result == null)
-//                continue;
-//
-//            int segment = (int) transported.beltPosition;
-//
-//            // Get Create's processing behaviour at this segment
-//            TransportedItemStackHandlerBehaviour handler =
-//                    BlockEntityBehaviour.get(level,
-//                            BeltHelper.getPositionForOffset(belt, segment),
-//                            TransportedItemStackHandlerBehaviour.TYPE);
-//
-//            if (handler == null)
-//                continue;
-//
-//            // Replace the transported item using Create's processing API
-//            TransportedItemStackHandlerBehaviour.TransportedResult tr = TransportedItemStackHandlerBehaviour.TransportedResult.convertTo(result.copy());
-//
-//            handler.handleReceivedItem(transported, tr);
-//
-//            // Belt will refresh visuals automatically
-//            belt.notifyUpdate();
-//        }
-        return InteractionResult.SUCCESS;
-    }
-
-    // PROGRESS SYSTEM
-    private ItemStack addProgress(ItemStack stack, Player player, Level level) {
-
-        ProgressionComponent old = stack.get(AllDataComponents.PROGRESSION);
-        if (old == null) {
-            // default if somehow missing
-            old = new ProgressionComponent(0, 5);
-        }
-
-        int newProgress = old.progress() + 1;
-
-        // Animation
-        player.swing(player.getUsedItemHand(), true);
-
-        // Sound
-        level.playSound(null, player.blockPosition(),
-                SoundEvents.ANVIL_HIT, SoundSource.PLAYERS,
-                0.75f, 1.2f);
-
-        // Completion
-        if (newProgress >= old.maxProgress()) {
-            return finishRecipe(stack, level);
-        }
-
-        // Update progress
-        stack.set(AllDataComponents.PROGRESSION,
-                new ProgressionComponent(newProgress, old.maxProgress()));
-
-        return null;
-    }
-
-
-
-    // TRANSFORM ITEM
-    private ItemStack finishRecipe(ItemStack stack, Level level) {
-        // Remove the input item
-        stack.shrink(1);
-
-        ItemStack output = new ItemStack(AllItems.ANDESITE_FASTENER.get());
-
-        // Remove progression component from the output
-        output.remove(AllDataComponents.PROGRESSION.get());
-
-        return output;
-    }
 }

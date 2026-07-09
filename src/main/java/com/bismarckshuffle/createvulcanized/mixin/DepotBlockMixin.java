@@ -5,6 +5,7 @@ import com.simibubi.create.content.logistics.depot.DepotBlock;
 import com.simibubi.create.content.logistics.depot.DepotBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -31,15 +32,23 @@ public abstract class DepotBlockMixin {
 
         // Get depot block entity
         DepotBlockEntity depot = (DepotBlockEntity) level.getBlockEntity(pos);
+        if (depot == null)
+            return;
 
-        // If depot has an item → run hammer logic instead of inserting
-        assert depot != null;
+        // Only hammer if depot has an item
         if (!depot.getHeldItem().isEmpty()) {
-            // Your hammering logic here
-            System.out.println("Hammer logic fired!");
 
-            cir.setReturnValue(ItemInteractionResult.SUCCESS);
-            cir.cancel();
+            InteractionResult result = AllItems.SMITHING_HAMMER.get().hammerDepot(level, depot, player);
+
+            if (result == InteractionResult.SUCCESS) {
+                cir.setReturnValue(ItemInteractionResult.sidedSuccess(level.isClientSide()));
+                cir.cancel();
+            } else {
+                // PASS and do NOT swing hammer
+                cir.setReturnValue(ItemInteractionResult.CONSUME);
+                cir.cancel();
+            }
+
         }
     }
 }
