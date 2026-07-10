@@ -1,6 +1,7 @@
 package com.bismarckshuffle.createvulcanized.datagen;
 
 import com.bismarckshuffle.createvulcanized.datagen.recipes.VulcanizedCompactingRecipeGen;
+import com.bismarckshuffle.createvulcanized.datagen.recipes.VulcanizedPressingRecipeGen;
 import com.bismarckshuffle.createvulcanized.datagen.recipes.VulcanizedVanillaRecipeGen;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.data.DataGenerator;
@@ -15,9 +16,12 @@ public class VulcanizedDataGen {
         PackOutput output = gen.getPackOutput();
         CompletableFuture<HolderLookup.Provider> registries = event.getLookupProvider();
 
+        // Add in my custom generators
         gen.addProvider(event.includeServer(),
                 new VulcanizedCompactingRecipeGen(output, registries));
         gen.addProvider(event.includeServer(),
                 new VulcanizedVanillaRecipeGen(output, registries));
+        gen.addProvider(event.includeServer(),
+                new VulcanizedPressingRecipeGen(output, registries));
     }
 }

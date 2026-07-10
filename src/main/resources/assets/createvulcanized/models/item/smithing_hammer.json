@@ -3,7 +3,8 @@
 	"credit": "Made with Blockbench",
 	"texture_size": [24, 24],
 	"textures": {
-		"0": "createvulcanized:item/smithing_hammer_texture"
+		"0": "createvulcanized:item/smithing_hammer_texture",
+		"particle": "createvulcanized:item/smithing_hammer_texture"
 	},
 	"elements": [
 		{
@@ -152,8 +153,8 @@
 			"translation": [0, 4.25, 0]
 		},
 		"gui": {
-			"rotation": [0, -45, 0],
-			"translation": [1.5, 3.25, 0],
+			"rotation": [0, -136, 19],
+			"translation": [1.75, 3.25, 0],
 			"scale": [1.25, 1.25, 1.25]
 		},
 		"fixed": {

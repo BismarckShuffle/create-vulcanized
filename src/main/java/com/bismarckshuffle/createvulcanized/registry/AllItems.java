@@ -2,6 +2,7 @@ package com.bismarckshuffle.createvulcanized.registry;
 
 import com.bismarckshuffle.createvulcanized.items.RubberSheetItem;
 
+import com.bismarckshuffle.createvulcanized.items.SmithingHammer;
 import com.tterrag.registrate.util.entry.ItemEntry;
 import net.minecraft.world.item.Item;
 
@@ -29,8 +30,8 @@ public class AllItems {
                     .properties(p -> p.stacksTo(32))
                     .register();
 
-    public static final ItemEntry<Item> SMITHING_HAMMER =
-            REGISTRATE.item("smithing_hammer", Item::new)
+    public static final ItemEntry<SmithingHammer> SMITHING_HAMMER =
+            REGISTRATE.item("smithing_hammer", SmithingHammer::new)
                     .properties(p -> p.stacksTo(1))
                     .register();
 
