@@ -14,6 +14,7 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 public class SmithingCategory implements IRecipeCategory<SmithingRecipe> {
@@ -21,9 +22,34 @@ public class SmithingCategory implements IRecipeCategory<SmithingRecipe> {
     private final IDrawable background;
     private final IDrawable icon;
 
+    private final IDrawable[] hammerFrames;
+
     public SmithingCategory(IGuiHelper guiHelper) {
         background = guiHelper.createBlankDrawable(150, 60);
         icon = guiHelper.createDrawableItemStack(new ItemStack(AllItems.SMITHING_HAMMER.get()));
+
+        hammerFrames = new IDrawable[] {
+                guiHelper.createDrawable(
+                        ResourceLocation.fromNamespaceAndPath("createvulcanized", "textures/gui/jei/hammer_anim_0.png"),
+                        0, 0, 16, 16
+                ),
+                guiHelper.createDrawable(
+                        ResourceLocation.fromNamespaceAndPath("createvulcanized", "textures/gui/jei/hammer_anim_1.png"),
+                        0, 0, 16, 16
+                ),
+                guiHelper.createDrawable(
+                        ResourceLocation.fromNamespaceAndPath("createvulcanized", "textures/gui/jei/hammer_anim_2.png"),
+                        0, 0, 16, 16
+                ),
+                guiHelper.createDrawable(
+                        ResourceLocation.fromNamespaceAndPath("createvulcanized", "textures/gui/jei/hammer_anim_3.png"),
+                        0, 0, 16, 16
+                ),
+                guiHelper.createDrawable(
+                        ResourceLocation.fromNamespaceAndPath("createvulcanized", "textures/gui/jei/hammer_anim_4.png"),
+                        0, 0, 16, 16
+                )
+        };
     }
 
     @Override
@@ -60,22 +86,30 @@ public class SmithingCategory implements IRecipeCategory<SmithingRecipe> {
     {
         background.draw(guiGraphics, 0, 0);
 
+        // Slots
         AllGuiTextures.JEI_SLOT.render(guiGraphics, 20, 22);
         AllGuiTextures.JEI_SLOT.render(guiGraphics, 110, 22);
-        AllGuiTextures.JEI_ARROW.render(guiGraphics, 66, 28);
 
+        // Create arrow
+        AllGuiTextures.JEI_ARROW.render(guiGraphics, 78, 26);
 
-        guiGraphics.renderItem(new ItemStack(AllItems.SMITHING_HAMMER.get()), 66, 22);
+        // Hammer animation
+        long time = System.currentTimeMillis() / 120;
+        int frame = (int)(time % hammerFrames.length);
+
+        hammerFrames[frame].draw(guiGraphics, 57, 22); // centered between slots
+
+        // “×5 hits” centered under hammer
         guiGraphics.drawString(
                 Minecraft.getInstance().font,
                 "×5 hits",
-                55, 40,
+                65 - (Minecraft.getInstance().font.width("×5 hits") / 2),
+                42,
                 0x404040,
                 false
         );
-
-
     }
+
 
 
     @Override
