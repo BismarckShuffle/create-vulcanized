@@ -62,6 +62,8 @@ public class SmithingCategory implements IRecipeCategory<SmithingRecipe> {
 
         AllGuiTextures.JEI_SLOT.render(guiGraphics, 20, 22);
         AllGuiTextures.JEI_SLOT.render(guiGraphics, 110, 22);
+        AllGuiTextures.JEI_ARROW.render(guiGraphics, 66, 28);
+
 
         guiGraphics.renderItem(new ItemStack(AllItems.SMITHING_HAMMER.get()), 66, 22);
         guiGraphics.drawString(
