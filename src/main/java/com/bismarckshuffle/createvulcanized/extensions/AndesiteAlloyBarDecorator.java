@@ -5,10 +5,11 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.client.IItemDecorator;
+import org.jetbrains.annotations.NotNull;
 
 public class AndesiteAlloyBarDecorator implements IItemDecorator {
     @Override
-    public boolean render(GuiGraphics guiGraphics, Font font, ItemStack stack, int xOffset, int yOffset) {
+    public boolean render(@NotNull GuiGraphics guiGraphics, @NotNull Font font, ItemStack stack, int xOffset, int yOffset) {
         // 1. Fetch custom Data Component from the stack
         // (Replace 'ModDataComponents.PROGRESSION.get()' with your actual component registry reference)
         var componentValue = stack.get(AllDataComponents.PROGRESSION.get());
