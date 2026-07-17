@@ -6,6 +6,7 @@
   "client": [],
   "mixins": [
     "DepotBlockMixin"
+
   ],
   "injectors": {
     "defaultRequire": 1

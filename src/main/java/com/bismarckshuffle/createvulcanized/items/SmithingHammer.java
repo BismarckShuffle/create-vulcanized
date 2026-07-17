@@ -1,5 +1,6 @@
 package com.bismarckshuffle.createvulcanized.items;
 
+import com.bismarckshuffle.createvulcanized.compat.jei.SmithingRecipe;
 import com.bismarckshuffle.createvulcanized.registry.AllDataComponents;
 import com.bismarckshuffle.createvulcanized.registry.AllItems;
 import com.simibubi.create.AllSoundEvents;
@@ -23,6 +24,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.bismarckshuffle.createvulcanized.components.ProgressionComponent;
+import org.jetbrains.annotations.NotNull;
 
 
 public class SmithingHammer extends Item {
@@ -76,12 +78,23 @@ public class SmithingHammer extends Item {
         }
     }
 
+    private SmithingRecipe findRecipe(ItemStack input) {
+        ItemStack testStack = input.copyWithCount(1);
+        
+        if (testStack.is(com.simibubi.create.AllItems.ANDESITE_ALLOY.get())) {
+            return new SmithingRecipe(
+                    new ItemStack(com.simibubi.create.AllItems.ANDESITE_ALLOY.get()),
+                    new ItemStack(AllItems.ANDESITE_FASTENER.get())
+            );
+        }
+        
+        return null;
+    }
+
     private HammerResult processOne(ItemStack stack) {
 
-        // Split off ONE item to process
-        ItemStack single = stack.split(1);
+        ProgressionComponent prog = stack.get(AllDataComponents.PROGRESSION.get());
 
-        ProgressionComponent prog = single.get(AllDataComponents.PROGRESSION);
         if (prog == null)
             prog = new ProgressionComponent(0, 5);
 
@@ -90,23 +103,13 @@ public class SmithingHammer extends Item {
         // COMPLETED
         if (newProgress >= prog.maxProgress()) {
 
-            // Consume the processed item
-            single.shrink(1);
-
-            // Create output
-            ItemStack output = new ItemStack(AllItems.ANDESITE_FASTENER.get());
-            output.remove(AllDataComponents.PROGRESSION.get());
-
-            // Reset progress on remaining stack
-            if (!stack.isEmpty()) {
-                stack.set(AllDataComponents.PROGRESSION,
-                        new ProgressionComponent(0, prog.maxProgress()));
-            }
+            SmithingRecipe recipe = findRecipe(stack);
+            ItemStack output = recipe != null ? recipe.output.copy() : new ItemStack(AllItems.ANDESITE_FASTENER.get());
 
             return new HammerResult(stack, output, true, 0, prog.maxProgress());
         }
 
-        // IN PROGRESS — update progress on remaining stack
+        // IN PROGRESS
         stack.set(AllDataComponents.PROGRESSION,
                 new ProgressionComponent(newProgress, prog.maxProgress()));
 
@@ -188,7 +191,7 @@ public class SmithingHammer extends Item {
 
 
     @Override
-    public InteractionResult useOn(UseOnContext ctx) {
+    public @NotNull InteractionResult useOn(UseOnContext ctx) {
         Level level = ctx.getLevel();
         BlockPos pos = ctx.getClickedPos();
         Player player = ctx.getPlayer();
