@@ -96,7 +96,13 @@ public class SmithingHammer extends Item {
         ProgressionComponent prog = stack.get(AllDataComponents.PROGRESSION.get());
 
         if (prog == null)
-            prog = new ProgressionComponent(0, 5);
+            prog = new ProgressionComponent(0, 5, 1);
+
+        // Stack was split or items removed—reset progress by removing the component
+        if (prog.progress() > 0 && prog.stackCount() != stack.getCount()) {
+            stack.remove(AllDataComponents.PROGRESSION.get());
+            return new HammerResult(stack, null, false, 0, 5);
+        }
 
         int newProgress = prog.progress() + 1;
 
@@ -106,12 +112,22 @@ public class SmithingHammer extends Item {
             SmithingRecipe recipe = findRecipe(stack);
             ItemStack output = recipe != null ? recipe.output.copy() : new ItemStack(AllItems.ANDESITE_FASTENER.get());
 
-            return new HammerResult(stack, output, true, 0, prog.maxProgress());
+            // Consume one item from the stack and reset progression on the remaining stack (if any)
+            ItemStack remaining;
+            int remainingCount = stack.getCount() - 1;
+            if (remainingCount <= 0) {
+                remaining = ItemStack.EMPTY;
+            } else {
+                remaining = stack.copyWithCount(remainingCount);
+                remaining.remove(AllDataComponents.PROGRESSION.get());
+            }
+
+            return new HammerResult(remaining, output, true, 0, prog.maxProgress());
         }
 
         // IN PROGRESS
         stack.set(AllDataComponents.PROGRESSION,
-                new ProgressionComponent(newProgress, prog.maxProgress()));
+                new ProgressionComponent(newProgress, prog.maxProgress(), stack.getCount()));
 
         return new HammerResult(stack, null, false, newProgress, prog.maxProgress());
     }
@@ -172,6 +188,7 @@ public class SmithingHammer extends Item {
 
             HammerResult result = processOne(stack);
 
+            // update the transported stack with the remaining input (may be empty)
             transported.stack = result.remaining;
             belt.notifyUpdate();
 
@@ -179,8 +196,16 @@ public class SmithingHammer extends Item {
             applyCooldown(player);
             player.causeFoodExhaustion(0.2F);
 
-            if (result.finished) {
-                transported.stack = result.output;
+            if (result.finished && !result.output.isEmpty()) {
+                // spawn the finished output item into the world above the belt (consistent with depot behavior)
+                BlockPos pos = belt.getBlockPos();
+                level.addFreshEntity(new ItemEntity(
+                        level,
+                        pos.getX() + 0.5,
+                        pos.getY() + 0.75,
+                        pos.getZ() + 0.5,
+                        result.output
+                ));
             }
 
             break;
