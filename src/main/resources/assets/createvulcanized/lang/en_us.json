@@ -1,14 +1,23 @@
 {
+  "itemGroup.createvulcanized": "Create: Vulcanized",
+
   "block.createvulcanized.tree_spile": "Tree Spile",
   "item.createvulcanized.tree_spile": "Tree Spile",
+
   "fluid.createvulcanized.resin": "Tree Resin",
   "item.createvulcanized.resin_bucket": "Resin Bucket",
+
   "item.createvulcanized.raw_rubber_sheet": "Raw Rubber Sheet",
   "item.createvulcanized.vulcanized_rubber_strips": "Vulcanized Rubber Strips",
-  "itemGroup.createvulcanized": "Create: Vulcanized",
+
+  "item.createvulcanized.andesite_fastener": "Andesite Fastener",
+
+  "item.createvulcanized.smithing_hammer": "Smithing Hammer",
 
   "tooltip.createvulcanized.tree_spile.empty": "  Empty (0 / %s mB)",
   "tooltip.createvulcanized.tree_spile.desc": "Extracts raw tree syrup when tapped securely into a live log trunk.",
   "tooltip.createvulcanized.tree_spile.warning": "Notice: Crooked trees (like Acacia) require at least 2 blocks of straight vertical trunk clearance above the spile to function properly.",
-  "tooltip.createvulcanized.raw_rubber_sheet.desc": "A raw rubber sheet."
+
+  "tooltip.createvulcanized.raw_rubber_sheet.desc": "A raw rubber sheet.",
+  "tooltip.createvulcanized.andesite_fastener.desc": "A fastener made from andesite."
 }

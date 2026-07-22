@@ -1,11 +1,13 @@
 {
   "type": "minecraft:blasting",
+  "category": "misc",
+  "cookingtime": 100,
+  "experience": 0.1,
   "ingredient": {
     "item": "createvulcanized:raw_rubber_sheet"
   },
   "result": {
+    "count": 1,
     "id": "createvulcanized:vulcanized_rubber_strips"
-  },
-  "experience": 0.1,
-  "cookingtime": 100
+  }
 }

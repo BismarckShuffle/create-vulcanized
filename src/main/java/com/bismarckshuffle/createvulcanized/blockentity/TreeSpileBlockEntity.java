@@ -64,7 +64,7 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
     @Override
     public void addBehaviours(List<BlockEntityBehaviour> behaviours) {
-        // Reserved for future Create behaviours.
+        // Reserved for future Create behaviors.
     }
 
 
@@ -86,23 +86,47 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
     }
 
     // Server-side production tick.
-    public void tick(Level level, BlockState state, TreeSpileBlockEntity be) {
-        if (level.isClientSide()) return;
+    @Override
+    public void tick() {
+        super.tick();
 
+        if (level == null || level.isClientSide()) return;
+
+        BlockState state = getBlockState();
         if (!state.getValue(TreeSpileBlock.ATTACHED_TO_TREE)) {
-            be.extractionTimer = 0;
+            this.extractionTimer = 0;
             return;
         }
 
-        be.extractionTimer++;
-        if (be.extractionTimer >= TICK_DELAY) {
-            be.extractionTimer = 0;
+        this.extractionTimer++;
+        if (this.extractionTimer >= TICK_DELAY) {
+            this.extractionTimer = 0;
+            FluidStack resinDroplet = new FluidStack(AllFluids.RESIN.get(), RESIN_PER_CYCLE);
+            this.getFluidTank().fill(resinDroplet, IFluidHandler.FluidAction.EXECUTE);
 
-            net.neoforged.neoforge.fluids.FluidStack resinDroplet =
-                    new net.neoforged.neoforge.fluids.FluidStack(AllFluids.RESIN.get(), RESIN_PER_CYCLE);
+            if (level instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+                double x = worldPosition.getX() + 0.5;
+                double y = worldPosition.getY() + 1.05;
+                double z = worldPosition.getZ() + 0.62;
 
-            be.getFluidTank().fill(resinDroplet, net.neoforged.neoforge.fluids.capability.IFluidHandler.FluidAction.EXECUTE);
+                net.minecraft.core.particles.DustParticleOptions dust =
+                        new net.minecraft.core.particles.DustParticleOptions(
+                                new org.joml.Vector3f(1.0F, 0.7F, 0.3F),  // Amber color
+                                1.0F  // Size
+                        );
+
+                serverLevel.sendParticles(dust, x, y, z, 1, 0, -0.02, 0, 0.1);
+            }
         }
+    }
+
+    // Deferred tree structure checks to avoid expensive world queries every tick
+    @Override
+    public void lazyTick() {
+        if (level == null || level.isClientSide()) return;
+
+        BlockState state = getBlockState();
+        forceTreeRecheck(level, worldPosition, state);
     }
 
     private boolean checkTreeStructure(Level level, BlockPos pos, BlockState state) {
@@ -254,7 +278,7 @@ public class TreeSpileBlockEntity extends SmartBlockEntity implements IHaveGoggl
 
         @Override
         protected void openerCountChanged(net.minecraft.world.level.Level level, net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state, int count, int openCount) {
-            // No blockstate update needed for opener count changes.
+            // No block state update needed for opener count changes.
         }
 
         @Override
