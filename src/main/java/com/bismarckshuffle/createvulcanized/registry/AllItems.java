@@ -34,6 +34,11 @@ public class AllItems {
             REGISTRATE.item("smithing_hammer", SmithingHammer::new)
                     .properties(p -> p.stacksTo(1))
                     .register();
+    @SuppressWarnings("unused")
+    public static final ItemEntry<Item> COPPER_VALVE =
+            REGISTRATE.item("copper_valve", Item::new)
+                    .properties(p -> p.stacksTo(32))
+                    .register();
 
     public static void register() {
         // Force class loading to trigger Registrate calls

@@ -68,7 +68,6 @@ public class TreeSpileBlock extends HorizontalDirectionalBlock implements Entity
     private static final BlockEntityTicker<TreeSpileBlockEntity> TICKER =
             (lvl, pos, st, be) -> be.tick();
 
-    @Nullable
     @Override
     @SuppressWarnings("unchecked")
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
